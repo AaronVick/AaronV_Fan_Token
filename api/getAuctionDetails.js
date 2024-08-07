@@ -5,19 +5,20 @@ const DEFAULT_FID = '354795'; // Replace with your actual FID
 
 async function getAuctionData(fid) {
     try {
-        // Add a 3-second delay
+        console.log(`Fetching auction data for FID: ${fid}`);
         await new Promise(resolve => setTimeout(resolve, 3000));
 
-        const { data } = await axios.get(`https://moxiescout.vercel.app/auction/${fid}`);
-        const $ = cheerio.load(data);
+        const response = await axios.get(`https://moxiescout.vercel.app/auction/${fid}`);
+        console.log(`MoxieScout response status: ${response.status}`);
+        const $ = cheerio.load(response.data);
 
-        // Check if the auction data is available
         const errorMessage = $('.text-red-500').text().trim();
         if (errorMessage === "Failed to load auction details. Please try again later.") {
+            console.log('No auction data available');
             return { error: "No Auction Data Available" };
         }
 
-        return {
+        const data = {
             clearingPrice: $('div:contains("Clearing Price") + div').text().trim(),
             auctionSupply: $('div:contains("Auction Supply") + div').text().trim(),
             auctionStart: $('div:contains("Auction Start") + div').text().trim(),
@@ -27,14 +28,16 @@ async function getAuctionData(fid) {
             status: $('div:contains("Status") + div').text().trim(),
             totalBidValue: $('div:contains("Total Bid Value") + div').text().trim(),
         };
+        console.log('Parsed auction data:', data);
+        return data;
     } catch (error) {
-        console.error('Error fetching auction data:', error);
+        console.error('Error fetching auction data:', error.message);
         throw error;
     }
 }
 
 module.exports = async (req, res) => {
-    console.log('Received request:', req.body);
+    console.log('Received request:', JSON.stringify(req.body));
 
     try {
         const { untrustedData } = req.body || {};
@@ -51,7 +54,7 @@ module.exports = async (req, res) => {
                 fid = fidResponse.data.result.user.fid;
                 displayName = farcasterName;
             } catch (error) {
-                console.error('Error fetching FID:', error);
+                console.error('Error fetching FID:', error.message);
                 return res.status(400).json({ error: 'Invalid Farcaster name' });
             }
         }
@@ -101,7 +104,7 @@ module.exports = async (req, res) => {
         res.setHeader('Content-Type', 'text/html');
         res.status(200).send(html);
     } catch (error) {
-        console.error('Error in getAuctionDetails:', error);
+        console.error('Error in getAuctionDetails:', error.message);
         res.status(500).json({ error: 'Failed to fetch auction data', details: error.message });
     }
 };
