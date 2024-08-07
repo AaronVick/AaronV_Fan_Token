@@ -6,7 +6,7 @@
   },
   "builds": [
     {
-      "src": "./api/*.js",
+      "src": "package.json",
       "use": "@vercel/node"
     }
   ]
