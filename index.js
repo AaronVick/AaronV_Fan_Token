@@ -1,4 +1,5 @@
 module.exports = (req, res) => {
+  const host = req.headers.host || 'aaron-v-fan-token.vercel.app';
   res.status(200).send(`
     <!DOCTYPE html>
     <html lang="en">
@@ -8,12 +9,13 @@ module.exports = (req, res) => {
         <title>Moxie Auction Frame</title>
         <meta property="fc:frame" content="vNext">
         <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+        <meta property="fc:frame:input:text" content="Enter Farcaster name (optional)">
         <meta property="fc:frame:button:1" content="View Auction Details">
-        <meta property="fc:frame:post_url" content="/api/getAuctionDetails">
+        <meta property="fc:frame:post_url" content="https://${host}/api/getAuctionDetails">
     </head>
     <body>
         <h1>Welcome to Moxie Auction Frame</h1>
-        <p>Click the button to view auction details.</p>
+        <p>Enter a Farcaster name or click the button to view auction details.</p>
     </body>
     </html>
   `);
