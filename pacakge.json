@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node index.js"
   },
+  "dependencies": {
+    "cloudinary": "^1.37.0"
+  },
   "engines": {
     "node": ">=14.0.0"
   }
