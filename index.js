@@ -1,5 +1,13 @@
 const https = require('https');
 const url = require('url');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary with environment variables
+cloudinary.config({ 
+  cloud_name: process.env.CloudAPI, 
+  api_key: process.env.CloudAPI,
+  api_secret: process.env.CloudAPICode
+});
 
 const DEFAULT_FID = '354795'; // Replace with your actual FID
 
@@ -44,6 +52,32 @@ async function getAuctionData(fid) {
     }
 }
 
+async function generateImage(auctionData, displayName) {
+  const text = `
+Auction Details for ${displayName}
+Clearing Price: ${auctionData.clearingPrice}
+Auction Supply: ${auctionData.auctionSupply}
+Status: ${auctionData.status}
+Total Bid Value: ${auctionData.totalBidValue}
+  `;
+
+  try {
+    const result = await cloudinary.uploader.text(text, {
+      font_family: "Arial",
+      font_size: 30,
+      font_color: "black",
+      background: "white",
+      width: 500,
+      height: 500
+    });
+    console.log('Image generated:', result.secure_url);
+    return result.secure_url;
+  } catch (error) {
+    console.error('Error generating image:', error);
+    throw error;
+  }
+}
+
 module.exports = async (req, res) => {
     console.log('Received request:', req.method, req.url);
     console.log('Request body:', req.body);
@@ -83,12 +117,12 @@ module.exports = async (req, res) => {
                     data += chunk.toString();
                 });
                 req.on('end', () => {
-                    resolve(data);
+                    resolve(JSON.parse(data));
                 });
                 req.on('error', reject);
             });
 
-            const { untrustedData } = JSON.parse(body);
+            const { untrustedData } = body;
             const farcasterName = untrustedData?.inputText || '';
 
             console.log('Farcaster name:', farcasterName);
@@ -114,21 +148,7 @@ module.exports = async (req, res) => {
 
             console.log('Auction data:', auctionData);
 
-            let content;
-            if (auctionData.error) {
-                content = `<p>${auctionData.error}</p>`;
-            } else {
-                content = `
-                    <p>Clearing Price: ${auctionData.clearingPrice}</p>
-                    <p>Auction Supply: ${auctionData.auctionSupply}</p>
-                    <p>Auction Start: ${auctionData.auctionStart}</p>
-                    <p>Auction End: ${auctionData.auctionEnd}</p>
-                    <p>Total Orders: ${auctionData.totalOrders}</p>
-                    <p>Unique Bidders: ${auctionData.uniqueBidders}</p>
-                    <p>Status: ${auctionData.status}</p>
-                    <p>Total Bid Value: ${auctionData.totalBidValue}</p>
-                `;
-            }
+            const generatedImageUrl = await generateImage(auctionData, displayName);
 
             const html = `
                 <!DOCTYPE html>
@@ -138,14 +158,14 @@ module.exports = async (req, res) => {
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Moxie Auction Details</title>
                     <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="${imageUrl}">
+                    <meta property="fc:frame:image" content="${generatedImageUrl}">
                     <meta property="fc:frame:input:text" content="Enter Farcaster name">
                     <meta property="fc:frame:button:1" content="View">
                     <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
                 </head>
                 <body>
                     <h1>Auction Details for ${displayName}</h1>
-                    ${content}
+                    <img src="${generatedImageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
                 </body>
                 </html>
             `;
