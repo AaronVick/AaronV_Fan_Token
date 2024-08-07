@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
                     <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie.11.jpg">
                     <meta property="fc:frame:input:text" content="Enter Farcaster name">
                     <meta property="fc:frame:button:1" content="View">
-                    <meta property="fc:frame:post_url" content="https://your-vercel-domain.com/api/getAuctionDetails">
+                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
                 </head>
                 <body>
                     <h1>Auction Details for ${displayName}</h1>
