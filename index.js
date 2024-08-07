@@ -1,17 +1,53 @@
 const https = require('https');
 const url = require('url');
-const cloudinary = require('cloudinary').v2;
-
-// Configure Cloudinary with environment variables
-cloudinary.config({ 
-  cloud_name: process.env.CloudAPI, 
-  api_key: process.env.CloudAPI,
-  api_secret: process.env.CloudAPICode
-});
 
 const DEFAULT_FID = '354795'; // Replace with your actual FID
 
-// ... (keep other functions as they are)
+function httpsGet(urlString) {
+    return new Promise((resolve, reject) => {
+        const options = url.parse(urlString);
+        https.get(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => resolve(data));
+        }).on('error', reject);
+    });
+}
+
+async function getAuctionData(fid) {
+    try {
+        console.log(`Fetching auction data for FID: ${fid}`);
+        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
+        console.log('MoxieScout response received');
+
+        if (data.includes("Failed to load auction details. Please try again later.")) {
+            console.log('No auction data available');
+            return { error: "No Auction Data Available" };
+        }
+
+        const auctionData = {
+            clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        };
+
+        console.log('Parsed auction data:', auctionData);
+        return auctionData;
+    } catch (error) {
+        console.error('Error fetching auction data:', error.message);
+        return { error: "Failed to fetch auction data" };
+    }
+}
+
+function generateImageUrl(auctionData, displayName) {
+    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
+    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${text}`;
+}
 
 module.exports = async (req, res) => {
     console.log('Received request:', req.method, req.url);
@@ -49,21 +85,7 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
         try {
             console.log('Processing POST request');
-            const body = await new Promise((resolve, reject) => {
-                let data = '';
-                req.on('data', chunk => {
-                    data += chunk.toString();
-                });
-                req.on('end', () => {
-                    try {
-                        resolve(JSON.parse(data));
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
-                req.on('error', reject);
-            });
-
+            const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
             console.log('Parsed body:', body);
 
             const { untrustedData } = body;
@@ -92,7 +114,7 @@ module.exports = async (req, res) => {
 
             console.log('Auction data:', auctionData);
 
-            const generatedImageUrl = await generateImage(auctionData, displayName);
+            const generatedImageUrl = generateImageUrl(auctionData, displayName);
 
             console.log('Generated image URL:', generatedImageUrl);
 
