@@ -63,7 +63,7 @@ module.exports = async (req, res) => {
 
         if (farcasterName.trim() !== '') {
             try {
-                const fidData = await httpsGet(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`);
+                const fidData = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
                 const fidJson = JSON.parse(fidData);
                 fid = fidJson.result.user.fid;
                 displayName = farcasterName;
