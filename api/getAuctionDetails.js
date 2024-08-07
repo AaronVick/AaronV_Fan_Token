@@ -1,37 +1,37 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { createCanvas, loadImage } = require('canvas');
 
 const DEFAULT_FID = '354795'; // Replace with your actual FID
 
 async function getAuctionData(fid) {
-    // ... (keep the existing getAuctionData function)
-}
+    try {
+        console.log(`Fetching auction data for FID: ${fid}`);
+        const response = await axios.get(`https://moxiescout.vercel.app/auction/${fid}`);
+        console.log(`MoxieScout response status: ${response.status}`);
+        const $ = cheerio.load(response.data);
 
-async function generateAuctionImage(auctionData, displayName) {
-    const canvas = createCanvas(1200, 630);
-    const ctx = canvas.getContext('2d');
-
-    // Set background
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, 1200, 630);
-
-    // Set text style
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 30px Arial';
-
-    // Draw auction details
-    ctx.fillText(`Auction Details for ${displayName}`, 50, 50);
-    ctx.font = '20px Arial';
-    let y = 100;
-    for (const [key, value] of Object.entries(auctionData)) {
-        if (key !== 'error') {
-            ctx.fillText(`${key}: ${value || 'N/A'}`, 50, y);
-            y += 40;
+        const errorMessage = $('.text-red-500').text().trim();
+        if (errorMessage === "Failed to load auction details. Please try again later.") {
+            console.log('No auction data available');
+            return { error: "No Auction Data Available" };
         }
-    }
 
-    return canvas.toDataURL();
+        const data = {
+            clearingPrice: $('div:contains("Clearing Price") + div').text().trim(),
+            auctionSupply: $('div:contains("Auction Supply") + div').text().trim(),
+            auctionStart: $('div:contains("Auction Start") + div').text().trim(),
+            auctionEnd: $('div:contains("Auction End") + div').text().trim(),
+            totalOrders: $('div:contains("Total Orders") + div').text().trim(),
+            uniqueBidders: $('div:contains("Unique Bidders") + div').text().trim(),
+            status: $('div:contains("Status") + div').text().trim(),
+            totalBidValue: $('div:contains("Total Bid Value") + div').text().trim(),
+        };
+        console.log('Parsed auction data:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching auction data:', error.message);
+        return { error: "Failed to fetch auction data" };
+    }
 }
 
 module.exports = async (req, res) => {
@@ -63,7 +63,21 @@ module.exports = async (req, res) => {
 
         console.log('Auction data:', auctionData);
 
-        const imageDataUrl = await generateAuctionImage(auctionData, displayName);
+        let content;
+        if (auctionData.error) {
+            content = `<p>${auctionData.error}</p>`;
+        } else {
+            content = `
+                <p>Clearing Price: ${auctionData.clearingPrice || 'N/A'}</p>
+                <p>Auction Supply: ${auctionData.auctionSupply || 'N/A'}</p>
+                <p>Auction Start: ${auctionData.auctionStart || 'N/A'}</p>
+                <p>Auction End: ${auctionData.auctionEnd || 'N/A'}</p>
+                <p>Total Orders: ${auctionData.totalOrders || 'N/A'}</p>
+                <p>Unique Bidders: ${auctionData.uniqueBidders || 'N/A'}</p>
+                <p>Status: ${auctionData.status || 'N/A'}</p>
+                <p>Total Bid Value: ${auctionData.totalBidValue || 'N/A'}</p>
+            `;
+        }
 
         const html = `
             <!DOCTYPE html>
@@ -73,14 +87,14 @@ module.exports = async (req, res) => {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Moxie Auction Details</title>
                 <meta property="fc:frame" content="vNext">
-                <meta property="fc:frame:image" content="${imageDataUrl}">
+                <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
                 <meta property="fc:frame:button:1" content="View">
                 <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
             </head>
             <body>
                 <h1>Auction Details for ${displayName}</h1>
-                <img src="${imageDataUrl}" alt="Auction Details">
+                ${content}
             </body>
             </html>
         `;
