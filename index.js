@@ -38,8 +38,9 @@ module.exports = async (req, res) => {
     console.log('Received request:', req.method, req.url);
     console.log('Request body:', req.body);
 
+    const imageUrl = 'https://www.aaronvick.com/Moxie/11.JPG';
+
     if (req.method === 'GET') {
-        // Serve the initial frame
         const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -48,15 +49,15 @@ module.exports = async (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moxie Auction Frame</title>
     <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+    <meta property="fc:frame:image" content="${imageUrl}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name (optional)">
     <meta property="fc:frame:button:1" content="View Auction Details">
-    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
 </head>
 <body>
     <h1>Welcome to Moxie Auction Frame</h1>
     <p>Enter a Farcaster name or click the button to view auction details.</p>
-    <img src="https://www.aaronvick.com/Moxie/11.JPG" alt="Moxie Auction Frame" style="max-width: 100%; height: auto;">
+    <img src="${imageUrl}" alt="Moxie Auction Frame" style="max-width: 100%; height: auto;">
 </body>
 </html>
         `;
@@ -65,7 +66,6 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-        // Handle auction data request
         try {
             const { untrustedData } = req.body || {};
             const farcasterName = untrustedData?.inputText || '';
@@ -116,10 +116,10 @@ module.exports = async (req, res) => {
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Moxie Auction Details</title>
                     <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+                    <meta property="fc:frame:image" content="${imageUrl}">
                     <meta property="fc:frame:input:text" content="Enter Farcaster name">
                     <meta property="fc:frame:button:1" content="View">
-                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
                 </head>
                 <body>
                     <h1>Auction Details for ${displayName}</h1>
@@ -140,10 +140,10 @@ module.exports = async (req, res) => {
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Error</title>
                     <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+                    <meta property="fc:frame:image" content="${imageUrl}">
                     <meta property="fc:frame:input:text" content="Enter Farcaster name">
                     <meta property="fc:frame:button:1" content="Try Again">
-                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
                 </head>
                 <body>
                     <h1>Error</h1>
@@ -155,7 +155,6 @@ module.exports = async (req, res) => {
         }
     }
 
-    // Handle any other HTTP method
     res.setHeader('Allow', ['GET', 'POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
 };
