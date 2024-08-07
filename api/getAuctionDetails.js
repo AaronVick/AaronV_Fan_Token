@@ -1,54 +1,4 @@
-const https = require('https');
-
-const DEFAULT_FID = '354795'; // Replace with your actual FID
-
-function httpsGet(url) {
-    return new Promise((resolve, reject) => {
-        https.get(url, (resp) => {
-            let data = '';
-            resp.on('data', (chunk) => {
-                data += chunk;
-            });
-            resp.on('end', () => {
-                resolve(data);
-            });
-        }).on("error", (err) => {
-            reject(err);
-        });
-    });
-}
-
-async function getAuctionData(fid) {
-    try {
-        console.log(`Fetching auction data for FID: ${fid}`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
-        console.log('MoxieScout response received');
-
-        // Simple parsing, adjust as needed
-        const auctionData = {
-            clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-        };
-
-        if (data.includes("Failed to load auction details. Please try again later.")) {
-            return { error: "No Auction Data Available" };
-        }
-
-        console.log('Parsed auction data:', auctionData);
-        return auctionData;
-    } catch (error) {
-        console.error('Error fetching auction data:', error.message);
-        throw error;
-    }
-}
+// ... (keep the existing imports and functions)
 
 module.exports = async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
@@ -97,6 +47,7 @@ module.exports = async (req, res) => {
             `;
         }
 
+        const host = req.headers.host || 'aaron-v-fan-token.vercel.app';
         const html = `
     <!DOCTYPE html>
     <html lang="en">
@@ -106,14 +57,13 @@ module.exports = async (req, res) => {
         <title>Moxie Auction Details</title>
         <meta property="fc:frame" content="vNext">
         <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
-        <meta property="fc:frame:input:text" content="Enter Farcaster name">
+        <meta property="fc:frame:input:text" content="Enter Farcaster name (optional)">
         <meta property="fc:frame:button:1" content="View">
-        <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+        <meta property="fc:frame:post_url" content="https://${host}/api/getAuctionDetails">
     </head>
     <body>
         <h1>Auction Details for ${displayName}</h1>
         ${content}
-        <p>Debug: Frame metadata should be present</p>
     </body>
     </html>
     `;
