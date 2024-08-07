@@ -2,6 +2,7 @@
   "name": "moxie-auction-frame",
   "version": "1.0.0",
   "dependencies": {
-    "cheerio": "^1.0.0-rc.10"
+    "cheerio": "^1.0.0-rc.10",
+    "node-fetch": "^2.6.1"
   }
 }
