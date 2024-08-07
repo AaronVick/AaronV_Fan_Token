@@ -18,7 +18,7 @@ async function getAuctionData(fid) {
     try {
         console.log(`Fetching auction data for FID: ${fid}`);
         const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
-        console.log('MoxieScout response received');
+        console.log('MoxieScout response received:', data);
 
         if (data.includes("Failed to load auction details. Please try again later.")) {
             console.log('No auction data available');
@@ -45,8 +45,12 @@ async function getAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
-    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${text}`;
+    const text = `Auction for ${displayName}%0A
+Clearing Price: ${auctionData.clearingPrice}%0A
+Auction Supply: ${auctionData.auctionSupply}%0A
+Status: ${auctionData.status}%0A
+Total Bid Value: ${auctionData.totalBidValue}`;
+    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
 module.exports = async (req, res) => {
