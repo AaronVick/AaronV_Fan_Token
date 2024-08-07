@@ -110,57 +110,83 @@ module.exports = async (req, res) => {
 
             console.log('FID:', fid);
 
-            const auctionData = await getAuctionData(fid);
+            // Fetch auction data with retry logic and delay
+            let auctionData;
+            for (let i = 0; i < 3; i++) {
+                try {
+                    // Initiate the data fetch
+                    const dataPromise = getAuctionData(fid);
+                    
+                    // Wait for at least 3 seconds (MoxieScout processing time)
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+                    // Now wait for the data to be fully retrieved
+                    auctionData = await dataPromise;
+                    
+                    if (!auctionData.error) break;
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    if (i === 2) throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+            }
 
             console.log('Auction data:', auctionData);
 
-            const generatedImageUrl = generateImageUrl(auctionData, displayName);
+            // Generate image URL only after we have the auction data
+            let generatedImageUrl;
+            try {
+                generatedImageUrl = generateImageUrl(auctionData, displayName);
+                console.log('Generated image URL:', generatedImageUrl);
+            } catch (error) {
+                console.error('Error generating image URL:', error);
+                generatedImageUrl = defaultImageUrl;
+            }
 
-            console.log('Generated image URL:', generatedImageUrl);
-
-            const html = `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Moxie Auction Details</title>
-                    <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="${generatedImageUrl}">
-                    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-                    <meta property="fc:frame:button:1" content="View">
-                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
-                </head>
-                <body>
-                    <h1>Auction Details for ${displayName}</h1>
-                    <img src="${generatedImageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
-                </body>
-                </html>
+            // Prepare final HTML response
+            const finalHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moxie Auction Details</title>
+    <meta property="fc:frame" content="vNext">
+    <meta property="fc:frame:image" content="${generatedImageUrl}">
+    <meta property="fc:frame:input:text" content="Enter Farcaster name">
+    <meta property="fc:frame:button:1" content="View">
+    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
+</head>
+<body>
+    <h1>Auction Details for ${displayName}</h1>
+    <img src="${generatedImageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
+</body>
+</html>
             `;
 
-            console.log('Sending response HTML');
+            console.log('Sending final response HTML');
             res.setHeader('Content-Type', 'text/html');
-            return res.status(200).send(html);
+            return res.status(200).send(finalHtml);
         } catch (error) {
             console.error('Error in POST handler:', error);
             const errorHtml = `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Error</title>
-                    <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="${defaultImageUrl}">
-                    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-                    <meta property="fc:frame:button:1" content="Try Again">
-                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
-                </head>
-                <body>
-                    <h1>Error</h1>
-                    <p>Failed to fetch auction data. Please try again.</p>
-                </body>
-                </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error</title>
+    <meta property="fc:frame" content="vNext">
+    <meta property="fc:frame:image" content="${defaultImageUrl}">
+    <meta property="fc:frame:input:text" content="Enter Farcaster name">
+    <meta property="fc:frame:button:1" content="Try Again">
+    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
+</head>
+<body>
+    <h1>Error</h1>
+    <p>Failed to fetch auction data. Please try again.</p>
+</body>
+</html>
             `;
             return res.status(500).send(errorHtml);
         }
