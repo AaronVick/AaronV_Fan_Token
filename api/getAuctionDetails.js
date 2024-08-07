@@ -52,6 +52,7 @@ async function getAuctionData(fid) {
 
 module.exports = async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
+    console.log('Request headers:', JSON.stringify(req.headers));
 
     try {
         const { untrustedData } = req.body || {};
@@ -112,12 +113,18 @@ module.exports = async (req, res) => {
     <body>
         <h1>Auction Details for ${displayName}</h1>
         ${content}
+        <p>Debug: Frame metadata should be present</p>
     </body>
     </html>
-`;
+    `;
 
         res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.status(200).send(html);
+
+        console.log('Response sent:', html);
     } catch (error) {
         console.error('Error in getAuctionDetails:', error.message);
         res.status(500).json({ error: 'Failed to fetch auction data', details: error.message });
