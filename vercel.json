@@ -3,5 +3,16 @@
     "api/*.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "builds": [
+    {
+      "src": "vercel-build.sh",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "public" }
+    },
+    {
+      "src": "api/*.js",
+      "use": "@vercel/node"
+    }
+  ]
 }
