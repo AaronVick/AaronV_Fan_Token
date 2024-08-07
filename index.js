@@ -1,7 +1,7 @@
 const https = require('https');
 const url = require('url');
 
-const DEFAULT_FID = '354795'; // Replace with your actual FID
+const DEFAULT_FID = '354795'; // Replace with your actual default FID
 
 function httpsGet(urlString) {
     return new Promise((resolve, reject) => {
@@ -46,7 +46,7 @@ async function getAuctionData(fid) {
 
 function generateImageUrl(auctionData, displayName) {
     const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
-    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${text}`;
+    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
 module.exports = async (req, res) => {
@@ -94,7 +94,7 @@ module.exports = async (req, res) => {
             console.log('Farcaster name:', farcasterName);
 
             let fid = DEFAULT_FID;
-            let displayName = 'Your Account';
+            let displayName = 'Default Account';
 
             if (farcasterName.trim() !== '') {
                 try {
@@ -105,6 +105,7 @@ module.exports = async (req, res) => {
                 } catch (error) {
                     console.error('Error fetching FID:', error.message);
                     displayName = 'Invalid Farcaster name';
+                    // Keep using the DEFAULT_FID
                 }
             }
 
@@ -114,14 +115,11 @@ module.exports = async (req, res) => {
             let auctionData;
             for (let i = 0; i < 3; i++) {
                 try {
-                    // Initiate the data fetch
-                    const dataPromise = getAuctionData(fid);
-                    
                     // Wait for at least 3 seconds (MoxieScout processing time)
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     
-                    // Now wait for the data to be fully retrieved
-                    auctionData = await dataPromise;
+                    // Now fetch the data
+                    auctionData = await getAuctionData(fid);
                     
                     if (!auctionData.error) break;
                 } catch (error) {
@@ -133,7 +131,7 @@ module.exports = async (req, res) => {
 
             console.log('Auction data:', auctionData);
 
-            // Generate image URL only after we have the auction data
+            // Generate image URL
             let generatedImageUrl;
             try {
                 generatedImageUrl = generateImageUrl(auctionData, displayName);
@@ -169,6 +167,7 @@ module.exports = async (req, res) => {
             return res.status(200).send(finalHtml);
         } catch (error) {
             console.error('Error in POST handler:', error);
+            const errorImageUrl = generateImageUrl({ clearingPrice: 'N/A', auctionSupply: 'N/A', status: 'N/A', totalBidValue: 'N/A' }, 'Error');
             const errorHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -177,7 +176,7 @@ module.exports = async (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Error</title>
     <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${defaultImageUrl}">
+    <meta property="fc:frame:image" content="${errorImageUrl}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
     <meta property="fc:frame:button:1" content="Try Again">
     <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
