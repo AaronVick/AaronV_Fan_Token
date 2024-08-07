@@ -45,11 +45,7 @@ async function getAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = `Auction for ${displayName}%0A
-Clearing Price: ${auctionData.clearingPrice}%0A
-Auction Supply: ${auctionData.auctionSupply}%0A
-Status: ${auctionData.status}%0A
-Total Bid Value: ${auctionData.totalBidValue}`;
+    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
     return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
@@ -63,7 +59,7 @@ module.exports = async (req, res) => {
         console.log('Farcaster name:', farcasterName);
 
         let fid = DEFAULT_FID;
-        let displayName = 'Your Account';
+        let displayName = 'Default Account';
 
         if (farcasterName.trim() !== '') {
             try {
@@ -71,13 +67,14 @@ module.exports = async (req, res) => {
                 const fidJson = JSON.parse(fidData);
                 fid = fidJson.result.user.fid;
                 displayName = farcasterName;
+                console.log(`Fetched FID: ${fid} for Farcaster name: ${farcasterName}`);
             } catch (error) {
                 console.error('Error fetching FID:', error.message);
                 displayName = 'Invalid Farcaster name';
             }
         }
 
-        console.log('FID:', fid);
+        console.log('Using FID:', fid);
 
         const auctionData = await getAuctionData(fid);
 
