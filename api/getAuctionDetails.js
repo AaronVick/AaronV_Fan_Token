@@ -1,4 +1,4 @@
-const axios = require('axios');
+const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
 const DEFAULT_FID = '354795'; // Replace with your actual FID
@@ -8,9 +8,10 @@ async function getAuctionData(fid) {
         console.log(`Fetching auction data for FID: ${fid}`);
         await new Promise(resolve => setTimeout(resolve, 3000));
 
-        const response = await axios.get(`https://moxiescout.vercel.app/auction/${fid}`);
+        const response = await fetch(`https://moxiescout.vercel.app/auction/${fid}`);
         console.log(`MoxieScout response status: ${response.status}`);
-        const $ = cheerio.load(response.data);
+        const data = await response.text();
+        const $ = cheerio.load(data);
 
         const errorMessage = $('.text-red-500').text().trim();
         if (errorMessage === "Failed to load auction details. Please try again later.") {
@@ -18,7 +19,7 @@ async function getAuctionData(fid) {
             return { error: "No Auction Data Available" };
         }
 
-        const data = {
+        const auctionData = {
             clearingPrice: $('div:contains("Clearing Price") + div').text().trim(),
             auctionSupply: $('div:contains("Auction Supply") + div').text().trim(),
             auctionStart: $('div:contains("Auction Start") + div').text().trim(),
@@ -28,8 +29,8 @@ async function getAuctionData(fid) {
             status: $('div:contains("Status") + div').text().trim(),
             totalBidValue: $('div:contains("Total Bid Value") + div').text().trim(),
         };
-        console.log('Parsed auction data:', data);
-        return data;
+        console.log('Parsed auction data:', auctionData);
+        return auctionData;
     } catch (error) {
         console.error('Error fetching auction data:', error.message);
         throw error;
@@ -50,8 +51,9 @@ module.exports = async (req, res) => {
 
         if (farcasterName.trim() !== '') {
             try {
-                const fidResponse = await axios.get(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`);
-                fid = fidResponse.data.result.user.fid;
+                const fidResponse = await fetch(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`);
+                const fidData = await fidResponse.json();
+                fid = fidData.result.user.fid;
                 displayName = farcasterName;
             } catch (error) {
                 console.error('Error fetching FID:', error.message);
@@ -85,4 +87,26 @@ module.exports = async (req, res) => {
             <!DOCTYPE html>
             <html lang="en">
             <head>
-                <meta charset="UT
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Moxie Auction Details</title>
+                <meta property="fc:frame" content="vNext">
+                <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+                <meta property="fc:frame:input:text" content="Enter Farcaster name">
+                <meta property="fc:frame:button:1" content="View">
+                <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+            </head>
+            <body>
+                <h1>Auction Details for ${displayName}</h1>
+                ${content}
+            </body>
+            </html>
+        `;
+
+        res.setHeader('Content-Type', 'text/html');
+        res.status(200).send(html);
+    } catch (error) {
+        console.error('Error in getAuctionDetails:', error.message);
+        res.status(500).json({ error: 'Failed to fetch auction data', details: error.message });
+    }
+};
