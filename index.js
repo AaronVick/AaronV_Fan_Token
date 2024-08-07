@@ -1,10 +1,4 @@
-const getAuctionDetails = require('./api/getAuctionDetails');
-
 module.exports = (req, res) => {
-  if (req.url.startsWith('/api/getAuctionDetails')) {
-    return getAuctionDetails(req, res);
-  }
-
   const html = `
 <!DOCTYPE html>
 <html lang="en">
