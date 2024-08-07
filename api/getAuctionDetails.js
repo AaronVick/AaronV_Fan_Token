@@ -65,9 +65,13 @@ module.exports = async (req, res) => {
             try {
                 const fidData = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
                 const fidJson = JSON.parse(fidData);
-                fid = fidJson.result.user.fid;
-                displayName = farcasterName;
-                console.log(`Fetched FID: ${fid} for Farcaster name: ${farcasterName}`);
+                if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
+                    fid = fidJson.result.user.fid;
+                    displayName = farcasterName;
+                    console.log(`Fetched FID: ${fid} for Farcaster name: ${farcasterName}`);
+                } else {
+                    throw new Error('FID not found in the response');
+                }
             } catch (error) {
                 console.error('Error fetching FID:', error.message);
                 displayName = 'Invalid Farcaster name';
