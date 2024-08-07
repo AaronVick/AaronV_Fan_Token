@@ -1,34 +1,47 @@
-const fetch = require('node-fetch');
-const cheerio = require('cheerio');
+const https = require('https');
 
 const DEFAULT_FID = '354795'; // Replace with your actual FID
+
+function httpsGet(url) {
+    return new Promise((resolve, reject) => {
+        https.get(url, (resp) => {
+            let data = '';
+            resp.on('data', (chunk) => {
+                data += chunk;
+            });
+            resp.on('end', () => {
+                resolve(data);
+            });
+        }).on("error", (err) => {
+            reject(err);
+        });
+    });
+}
 
 async function getAuctionData(fid) {
     try {
         console.log(`Fetching auction data for FID: ${fid}`);
         await new Promise(resolve => setTimeout(resolve, 3000));
 
-        const response = await fetch(`https://moxiescout.vercel.app/auction/${fid}`);
-        console.log(`MoxieScout response status: ${response.status}`);
-        const data = await response.text();
-        const $ = cheerio.load(data);
+        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
+        console.log('MoxieScout response received');
 
-        const errorMessage = $('.text-red-500').text().trim();
-        if (errorMessage === "Failed to load auction details. Please try again later.") {
-            console.log('No auction data available');
+        // Simple parsing, adjust as needed
+        const auctionData = {
+            clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        };
+
+        if (data.includes("Failed to load auction details. Please try again later.")) {
             return { error: "No Auction Data Available" };
         }
 
-        const auctionData = {
-            clearingPrice: $('div:contains("Clearing Price") + div').text().trim(),
-            auctionSupply: $('div:contains("Auction Supply") + div').text().trim(),
-            auctionStart: $('div:contains("Auction Start") + div').text().trim(),
-            auctionEnd: $('div:contains("Auction End") + div').text().trim(),
-            totalOrders: $('div:contains("Total Orders") + div').text().trim(),
-            uniqueBidders: $('div:contains("Unique Bidders") + div').text().trim(),
-            status: $('div:contains("Status") + div').text().trim(),
-            totalBidValue: $('div:contains("Total Bid Value") + div').text().trim(),
-        };
         console.log('Parsed auction data:', auctionData);
         return auctionData;
     } catch (error) {
@@ -51,9 +64,9 @@ module.exports = async (req, res) => {
 
         if (farcasterName.trim() !== '') {
             try {
-                const fidResponse = await fetch(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`);
-                const fidData = await fidResponse.json();
-                fid = fidData.result.user.fid;
+                const fidData = await httpsGet(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`);
+                const fidJson = JSON.parse(fidData);
+                fid = fidJson.result.user.fid;
                 displayName = farcasterName;
             } catch (error) {
                 console.error('Error fetching FID:', error.message);
