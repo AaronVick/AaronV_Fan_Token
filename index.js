@@ -1,10 +1,12 @@
 const https = require('https');
+const url = require('url');
 
 const DEFAULT_FID = '354795'; // Replace with your actual FID
 
-function httpsGet(url) {
+function httpsGet(urlString) {
     return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
+        const options = url.parse(urlString);
+        https.get(options, (res) => {
             let data = '';
             res.on('data', (chunk) => data += chunk);
             res.on('end', () => resolve(data));
@@ -75,7 +77,18 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
         try {
-            const { untrustedData } = req.body || {};
+            const body = await new Promise((resolve, reject) => {
+                let data = '';
+                req.on('data', chunk => {
+                    data += chunk.toString();
+                });
+                req.on('end', () => {
+                    resolve(data);
+                });
+                req.on('error', reject);
+            });
+
+            const { untrustedData } = JSON.parse(body);
             const farcasterName = untrustedData?.inputText || '';
 
             console.log('Farcaster name:', farcasterName);
