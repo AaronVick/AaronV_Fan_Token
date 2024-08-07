@@ -6,8 +6,6 @@ const DEFAULT_FID = '354795'; // Replace with your actual FID
 async function getAuctionData(fid) {
     try {
         console.log(`Fetching auction data for FID: ${fid}`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
         const response = await axios.get(`https://moxiescout.vercel.app/auction/${fid}`);
         console.log(`MoxieScout response status: ${response.status}`);
         const $ = cheerio.load(response.data);
@@ -38,7 +36,6 @@ async function getAuctionData(fid) {
 
 module.exports = async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
-    console.log('Request headers:', JSON.stringify(req.headers));
 
     try {
         const { untrustedData } = req.body || {};
@@ -57,7 +54,6 @@ module.exports = async (req, res) => {
             } catch (error) {
                 console.error('Error fetching FID:', error.message);
                 displayName = 'Invalid Farcaster name';
-                fid = DEFAULT_FID;
             }
         }
 
