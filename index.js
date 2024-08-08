@@ -1,27 +1,17 @@
 const chrome = require('chrome-aws-lambda');
-const puppeteer = require('puppeteer-core');
+const playwright = require('playwright-core');
 
 const DEFAULT_FID = '354795';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
 async function getBrowserInstance() {
-  const options = process.env.AWS_REGION
-    ? {
-        args: chrome.args,
-        executablePath: await chrome.executablePath,
-        headless: chrome.headless,
-      }
-    : {
-        args: [],
-        executablePath:
-          process.platform === 'win32'
-            ? 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-            : process.platform === 'linux'
-            ? '/usr/bin/google-chrome'
-            : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      };
-  return await puppeteer.launch(options);
+  const options = {
+    args: chrome.args,
+    executablePath: await chrome.executablePath,
+    headless: chrome.headless,
+  };
+  return await playwright.chromium.launch(options);
 }
 
 async function getAuctionData(fid) {
@@ -33,10 +23,9 @@ async function getAuctionData(fid) {
 
     await page.goto(url, { waitUntil: 'networkidle0' });
 
-    // Wait for the auction details to load
-    await page.waitForSelector('.auction-detail'); // Adjust the selector as necessary
+    await page.waitForTimeout(3000); // Wait for 3 seconds
 
-    const data = await page.evaluate(() => document.body.innerHTML);
+    const data = await page.content();
     await browser.close();
     console.log('MoxieScout response received:', data);
 
@@ -148,20 +137,15 @@ module.exports = async (req, res) => {
 </head>
 <body>
     <h1>Auction Details for ${displayName}</h1>
-    <img src="${DEFAULT_IMAGE_URL}" alt="Auction Details" style="max-width: 100%; height: auto;">
-    <input type="text" name="farcasterName" placeholder="Enter Farcaster name">
-    <button onclick="fetchAuctionData()">View</button>
+    <img src="${generateImageUrl(auctionData, displayName)}" alt="Auction Details" style="max-width: 100%; height: auto;">
     <script>
         async function fetchAuctionData() {
             const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
-            console.log('Fetching data for Farcaster name:', farcasterName);
-
             const response = await fetch('https://aaron-v-fan-token.vercel.app/api/getAuctionDetails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ untrustedData: { inputText: farcasterName } })
             });
-
             const result = await response.text();
             document.body.innerHTML = result;
         }
@@ -190,23 +174,6 @@ module.exports = async (req, res) => {
 <body>
     <h1>Error</h1>
     <p>Failed to fetch auction data. Please try again.</p>
-    <input type="text" name="farcasterName" placeholder="Enter Farcaster name">
-    <button onclick="fetchAuctionData()">Try Again</button>
-    <script>
-        async function fetchAuctionData() {
-            const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
-            console.log('Fetching data for Farcaster name:', farcasterName);
-
-            const response = await fetch('https://aaron-v-fan-token.vercel.app/api/getAuctionDetails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ untrustedData: { inputText: farcasterName } })
-            });
-
-            const result = await response.text();
-            document.body.innerHTML = result;
-        }
-    </script>
 </body>
 </html>
     `);
