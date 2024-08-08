@@ -1,15 +1,16 @@
 {
-  "version": 2,
   "builds": [
     {
       "src": "index.js",
       "use": "@vercel/node",
-      "config": { "includeFiles": ["package.json"] }
+      "config": {
+        "includeFiles": ["vercel-build.sh"]
+      }
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/api/getAuctionDetails",
       "dest": "/index.js"
     }
   ]
