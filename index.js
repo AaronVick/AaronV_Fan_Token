@@ -1,5 +1,6 @@
 const https = require('https');
 const url = require('url');
+const { getAuctionData } = require('./getAuctionDetails');
 
 const DEFAULT_FID = '354795'; // Replace with your actual default FID
 
@@ -13,38 +14,6 @@ function httpsGet(urlString, headers = {}) {
             res.on('end', () => resolve(data));
         }).on('error', reject);
     });
-}
-
-async function getAuctionData(fid) {
-    try {
-        console.log(`Fetching auction data for FID: ${fid}`);
-        const moxieUrl = `https://moxiescout.vercel.app/auction/${fid}`;
-        console.log('MoxieScout URL:', moxieUrl);
-        const data = await httpsGet(moxieUrl);
-        console.log('MoxieScout raw response:', data.substring(0, 500) + '...'); // Log first 500 characters
-
-        if (data.includes("Failed to load auction details. Please try again later.")) {
-            console.log('No auction data available');
-            return { error: "No Auction Data Available" };
-        }
-
-        const auctionData = {
-            clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-            totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-        };
-
-        console.log('Parsed auction data:', auctionData);
-        return auctionData;
-    } catch (error) {
-        console.error('Error fetching auction data:', error.message);
-        return { error: "Failed to fetch auction data: " + error.message };
-    }
 }
 
 function generateImageUrl(auctionData, displayName) {
