@@ -13,7 +13,3 @@ chmod +x /usr/bin/google-chrome
 
 # Install Node.js dependencies
 npm install
-
-# Set environment variables for Puppeteer
-export AWS_REGION=us-east-1
-export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
