@@ -20,7 +20,7 @@ async function getAuctionData(fid) {
     try {
         const urlString = `https://moxiescout.vercel.app/auction/${fid}`;
         console.log(`Fetching auction data from URL: ${urlString}`);
-        
+
         // Adding a 3-second delay to ensure data is ready
         await new Promise(resolve => setTimeout(resolve, 3000));
 
@@ -61,7 +61,7 @@ async function fetchAuctionDetails(farcasterName) {
             const fidData = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
             const fidJson = JSON.parse(fidData);
             console.log('FID JSON Response:', fidJson);
-            
+
             if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
                 fid = fidJson.result.user.fid;
                 displayName = farcasterName;
