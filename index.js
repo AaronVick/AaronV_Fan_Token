@@ -18,11 +18,16 @@ function httpsGet(urlString) {
 
 async function getAuctionData(fid) {
     try {
-        console.log(`Fetching auction data for FID: ${fid}`);
-        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
+        const urlString = `https://moxiescout.vercel.app/auction/${fid}`;
+        console.log(`Fetching auction data from URL: ${urlString}`);
+        
+        // Adding a 3-second delay to ensure data is ready
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        const data = await httpsGet(urlString);
         console.log('MoxieScout response received:', data);
 
-        if (data.includes("Failed to load auction details. Please try again later.")) {
+        if (data.includes("Failed to load auction details. Please try again later.") || data.includes("404: This page could not be found.")) {
             console.log('No auction data available');
             return { error: "No Auction Data Available" };
         }
@@ -55,6 +60,8 @@ async function fetchAuctionDetails(farcasterName) {
             console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
             const fidData = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
             const fidJson = JSON.parse(fidData);
+            console.log('FID JSON Response:', fidJson);
+            
             if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
                 fid = fidJson.result.user.fid;
                 displayName = farcasterName;
