@@ -47,12 +47,21 @@ async function getAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    if (auctionData.error) {
-        return ERROR_IMAGE_URL;
-    }
+    const text = auctionData.error
+        ? `Error: ${auctionData.error}`
+        : `Auction for ${displayName}
+Clearing Price: ${auctionData.clearingPrice.padEnd(20)}
+Auction Supply: ${auctionData.auctionSupply.padEnd(20)}
+Auction Start: ${auctionData.auctionStart.padEnd(20)}
+Auction End: ${auctionData.auctionEnd.padEnd(20)}
+Total Orders: ${auctionData.totalOrders}
+Unique Bidders: ${auctionData.uniqueBidders}
+Status: ${auctionData.status}
+Total Bid Value: ${auctionData.totalBidValue}`;
 
-    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
-    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
+    return auctionData.error
+        ? ERROR_IMAGE_URL
+        : `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
 module.exports = async (req, res) => {
@@ -90,28 +99,6 @@ module.exports = async (req, res) => {
 
         console.log('Auction data:', auctionData);
 
-        let content;
-        if (auctionData.error) {
-            content = `<p>${auctionData.error}</p>`;
-        } else {
-            content = `
-                <div style="display: flex; justify-content: space-between;">
-                    <div>
-                        <p>Clearing Price: ${auctionData.clearingPrice || 'N/A'}</p>
-                        <p>Auction Supply: ${auctionData.auctionSupply || 'N/A'}</p>
-                        <p>Auction Start: ${auctionData.auctionStart || 'N/A'}</p>
-                        <p>Auction End: ${auctionData.auctionEnd || 'N/A'}</p>
-                    </div>
-                    <div>
-                        <p>Total Orders: ${auctionData.totalOrders || 'N/A'}</p>
-                        <p>Unique Bidders: ${auctionData.uniqueBidders || 'N/A'}</p>
-                        <p>Status: ${auctionData.status || 'N/A'}</p>
-                        <p>Total Bid Value: ${auctionData.totalBidValue || 'N/A'}</p>
-                    </div>
-                </div>
-            `;
-        }
-
         const html = `
             <!DOCTYPE html>
             <html lang="en">
@@ -126,9 +113,21 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
             </head>
             <body>
-                <h1>Auction Details for ${displayName}</h1>
                 <img src="${DEFAULT_IMAGE_URL}" alt="Moxie Auction" style="max-width: 100%; height: auto;">
-                ${content}
+                <div style="display: flex; justify-content: space-between; padding: 1rem;">
+                    <div>
+                        <p>Clearing Price: ${auctionData.clearingPrice || 'N/A'}</p>
+                        <p>Auction Supply: ${auctionData.auctionSupply || 'N/A'}</p>
+                        <p>Auction Start: ${auctionData.auctionStart || 'N/A'}</p>
+                        <p>Auction End: ${auctionData.auctionEnd || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p>Total Orders: ${auctionData.totalOrders || 'N/A'}</p>
+                        <p>Unique Bidders: ${auctionData.uniqueBidders || 'N/A'}</p>
+                        <p>Status: ${auctionData.status || 'N/A'}</p>
+                        <p>Total Bid Value: ${auctionData.totalBidValue || 'N/A'}</p>
+                    </div>
+                </div>
                 <script>
                     async function fetchAuctionData() {
                         const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
