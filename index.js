@@ -2,6 +2,7 @@ const https = require('https');
 const url = require('url');
 
 const DEFAULT_FID = '354795'; // Replace with your actual default FID
+const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=Error';
 
 function httpsGet(urlString) {
     return new Promise((resolve, reject) => {
@@ -17,8 +18,8 @@ function httpsGet(urlString) {
 async function getAuctionData(fid) {
     try {
         console.log(`Fetching auction data for FID: ${fid}`);
-        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
-        console.log('MoxieScout response received');
+        const data = await httpsGet(`https://farquest.vercel.app/auction/${fid}`);
+        console.log('FarQuest response received');
 
         if (data.includes("Failed to load auction details. Please try again later.")) {
             console.log('No auction data available');
@@ -45,7 +46,11 @@ async function getAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
+    const text = auctionData.error ? `Error: ${auctionData.error}` : `Auction for ${displayName}
+Clearing Price: ${auctionData.clearingPrice.padEnd(20)} Total Orders: ${auctionData.totalOrders}
+Auction Supply: ${auctionData.auctionSupply.padEnd(20)} Unique Bidders: ${auctionData.uniqueBidders}
+Auction Start: ${auctionData.auctionStart.padEnd(20)} Status: ${auctionData.status}
+Auction End: ${auctionData.auctionEnd.padEnd(20)} Total Bid Value: ${auctionData.totalBidValue}`.trim();
     return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
@@ -95,7 +100,7 @@ module.exports = async (req, res) => {
 
             if (farcasterName.trim() !== '') {
                 try {
-                    const fidData = await httpsGet(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`);
+                    const fidData = await httpsGet(`https://farquest.vercel.app/user-by-username?username=${farcasterName}`);
                     const fidJson = JSON.parse(fidData);
                     fid = fidJson.result.user.fid;
                     displayName = farcasterName;
@@ -112,7 +117,7 @@ module.exports = async (req, res) => {
             let auctionData;
             for (let i = 0; i < 3; i++) {
                 try {
-                    // Wait for at least 3 seconds (MoxieScout processing time)
+                    // Wait for at least 3 seconds (FarQuest processing time)
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     
                     // Now fetch the data
@@ -135,7 +140,7 @@ module.exports = async (req, res) => {
                 console.log('Generated image URL:', generatedImageUrl);
             } catch (error) {
                 console.error('Error generating image URL:', error);
-                generatedImageUrl = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=Error';
+                generatedImageUrl = ERROR_IMAGE_URL;
             }
 
             // Prepare final HTML response
@@ -162,7 +167,7 @@ module.exports = async (req, res) => {
             return res.status(200).send(finalHtml);
         } catch (error) {
             console.error('Error in POST handler:', error);
-            const errorImageUrl = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=Error';
+            const errorImageUrl = ERROR_IMAGE_URL;
             const errorHtml = `
 <!DOCTYPE html>
 <html lang="en">
