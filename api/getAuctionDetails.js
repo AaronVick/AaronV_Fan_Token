@@ -3,9 +3,10 @@ const url = require('url');
 
 const DEFAULT_FID = '354795'; // Replace with your actual FID
 
-function httpsGet(urlString) {
+function httpsGet(urlString, headers = {}) {
     return new Promise((resolve, reject) => {
         const options = url.parse(urlString);
+        options.headers = headers;
         https.get(options, (res) => {
             let data = '';
             res.on('data', (chunk) => data += chunk);
@@ -63,7 +64,11 @@ module.exports = async (req, res) => {
 
         if (farcasterName.trim() !== '') {
             try {
-                const fidData = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
+                const headers = {
+                    'API-KEY': process.env.FarQuestAPI,
+                    'accept': 'application/json'
+                };
+                const fidData = await httpsGet(`https://build.far.quest/farcaster/v2/user-by-username?username=${farcasterName}`, headers);
                 const fidJson = JSON.parse(fidData);
                 if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
                     fid = fidJson.result.user.fid;
@@ -116,24 +121,12 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame" content="vNext">
                 <meta property="fc:frame:image" content="${generateImageUrl(auctionData, displayName)}">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
-                <meta property="fc:frame:button:1" content="View Auction Details" onclick="fetchAuctionData()">
+                <meta property="fc:frame:button:1" content="View Auction Details">
                 <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
             </head>
             <body>
                 <h1>Auction Details for ${displayName}</h1>
                 ${content}
-                <script>
-                    async function fetchAuctionData() {
-                        const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
-                        const response = await fetch('https://aaron-v-fan-token.vercel.app/api/getAuctionDetails', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ untrustedData: { inputText: farcasterName } })
-                        });
-                        const result = await response.text();
-                        document.body.innerHTML = result;
-                    }
-                </script>
             </body>
             </html>
         `;
@@ -152,24 +145,12 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame" content="vNext">
                 <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
-                <meta property="fc:frame:button:1" content="Try Again" onclick="fetchAuctionData()">
+                <meta property="fc:frame:button:1" content="Try Again">
                 <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
             </head>
             <body>
                 <h1>Error</h1>
                 <p>Failed to fetch auction data. Please try again.</p>
-                <script>
-                    async function fetchAuctionData() {
-                        const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
-                        const response = await fetch('https://aaron-v-fan-token.vercel.app/api/getAuctionDetails', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ untrustedData: { inputText: farcasterName } })
-                        });
-                        const result = await response.text();
-                        document.body.innerHTML = result;
-                    }
-                </script>
             </body>
             </html>
         `);
