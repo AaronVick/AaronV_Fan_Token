@@ -1,12 +1,12 @@
 {
-  "name": "moxie-auction-frame",
+  "name": "Moxie Fan Token Info",
   "version": "1.0.0",
-  "description": "Farcaster frame for Moxie auction details",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "engines": {
-    "node": ">=14.0.0"
+  "dependencies": {
+    "chrome-aws-lambda": "^10.1.0",
+    "puppeteer-core": "^10.1.0"
   }
 }
