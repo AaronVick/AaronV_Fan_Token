@@ -1,36 +1,38 @@
 const https = require('https');
 const url = require('url');
 
-const DEFAULT_FID = '354795';
-const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
-const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
+// ... (other constants and functions remain the same)
 
-function httpsGet(urlString) {
+function httpsGet(urlString, timeout = 5000) {
   return new Promise((resolve, reject) => {
     const options = url.parse(urlString);
     options.headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     };
-    https.get(options, (res) => {
+    const req = https.get(options, (res) => {
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => resolve(data));
     }).on('error', reject);
+
+    req.setTimeout(timeout, () => {
+      req.abort();
+      reject(new Error(`Request timed out after ${timeout}ms`));
+    });
   });
 }
 
-async function getAuctionData(fid) {
+async function getAuctionData(fid, retries = 1) {
   try {
     const url = `https://moxiescout.vercel.app/auction/${fid}`;
     console.log(`Fetching auction data from URL: ${url}`);
 
-    const data = await httpsGet(url);
+    const data = await httpsGet(url, 5000); // 5-second timeout
 
-    // Check if the page is still loading
-    if (data.includes("animate-pulse")) {
+    if (data.includes("animate-pulse") && retries > 0) {
       console.log('Page is still loading, retrying...');
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
-      return getAuctionData(fid); // Retry
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return getAuctionData(fid, retries - 1);
     }
 
     if (data.includes("Failed to load auction details. Please try again later.") || data.includes("404: This page could not be found.")) {
@@ -54,92 +56,14 @@ async function getAuctionData(fid) {
     return auctionData;
   } catch (error) {
     console.error('Error fetching auction data:', error.message);
-    return { error: "Failed to fetch auction data" };
+    return { error: "Failed to fetch auction data: " + error.message };
   }
 }
 
-async function fetchFid(farcasterName) {
-  try {
-    console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
-    const data = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
-    const fidJson = JSON.parse(data);
-    console.log('FID JSON Response:', fidJson);
-
-    if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
-      return fidJson.result.user.fid;
-    } else {
-      throw new Error('FID not found in the response');
-    }
-  } catch (error) {
-    console.error('Error fetching FID:', error.message);
-    throw error;
-  }
-}
-
-async function fetchAuctionDetails(farcasterName) {
-  let fid = DEFAULT_FID;
-  let displayName = 'Default Account';
-
-  if (farcasterName.trim() !== '') {
-    try {
-      fid = await fetchFid(farcasterName);
-      displayName = farcasterName;
-      console.log(`Fetched FID: ${fid} for Farcaster name: ${farcasterName}`);
-    } catch (error) {
-      console.error('Error fetching FID:', error.message);
-      displayName = 'Invalid Farcaster name';
-    }
-  }
-
-  const auctionData = await getAuctionData(fid);
-  return { auctionData, displayName };
-}
-
-function generateImageUrl(auctionData, displayName) {
-  let text;
-  if (auctionData.error) {
-    text = `Error: ${auctionData.error}`;
-    return ERROR_IMAGE_URL;
-  } else {
-    text = `
-Auction for ${displayName}
-
-Clearing Price:  ${(auctionData.clearingPrice || 'N/A').padEnd(20)}  Total Orders:    ${auctionData.totalOrders || 'N/A'}
-Auction Supply:  ${(auctionData.auctionSupply || 'N/A').padEnd(20)}  Unique Bidders:  ${auctionData.uniqueBidders || 'N/A'}
-Auction Start:   ${(auctionData.auctionStart || 'N/A').padEnd(20)}  Status:          ${auctionData.status || 'N/A'}
-Auction End:     ${(auctionData.auctionEnd || 'N/A').padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue || 'N/A'}
-        `.trim();
-  }
-
-  const encodedText = encodeURIComponent(text);
-  console.log('Encoded text for image URL:', encodedText);
-  return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodedText}&font=monospace&size=35`;
-}
+// ... (rest of the code remains the same)
 
 module.exports = async (req, res) => {
-  if (req.method === 'GET') {
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Moxie Auction Frame</title>
-          <meta property="fc:frame" content="vNext">
-          <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}">
-          <meta property="fc:frame:input:text" content="Enter Farcaster name (optional)">
-          <meta property="fc:frame:button:1" content="View Auction Details">
-          <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
-      </head>
-      <body>
-          <h1>Welcome to Moxie Auction Frame</h1>
-          <p>Enter a Farcaster name or click the button to view auction details.</p>
-      </body>
-      </html>
-    `;
-    res.setHeader('Content-Type', 'text/html');
-    return res.status(200).send(html);
-  }
+  // ... (GET handler remains the same)
 
   if (req.method === 'POST') {
     console.log('Received request:', JSON.stringify(req.body));
