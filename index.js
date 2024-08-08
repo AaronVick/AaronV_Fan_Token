@@ -1,4 +1,3 @@
-const playwright = require('playwright-core');
 const fetch = require('node-fetch');
 const express = require('express');
 const app = express();
@@ -8,28 +7,13 @@ const DEFAULT_FID = '354795';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
-async function getBrowserInstance() {
-  const browser = await playwright.chromium.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
-    headless: true,
-  });
-  return browser;
-}
-
 async function getAuctionData(fid) {
   try {
-    const browser = await getBrowserInstance();
-    const page = await browser.newPage();
     const url = `https://moxiescout.vercel.app/auction/${fid}`;
     console.log(`Fetching auction data from URL: ${url}`);
 
-    await page.goto(url, { waitUntil: 'networkidle0' });
-    await page.waitForTimeout(3000);
-
-    const data = await page.content();
-    await browser.close();
-    console.log('MoxieScout response received:', data);
+    const response = await fetch(url);
+    const data = await response.text();
 
     if (data.includes("Failed to load auction details. Please try again later.") || data.includes("404: This page could not be found.")) {
       console.log('No auction data available');
