@@ -3,11 +3,33 @@ const url = require('url');
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 
-async function fetchAuctionDataFromService() {
+async function fetchAuctionDataFromService(fid) {
   const serviceUrl = 'https://puppeteer-7b95.onrender.com/auction-data';
-  const response = await fetch(serviceUrl);
+  const response = await fetch(serviceUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fid })
+  });
   const data = await response.json();
   return data;
+}
+
+module.exports = async (req, res) => {
+  console.log('Received request:', JSON.stringify(req.body));
+
+  try {
+    const { untrustedData } = req.body || {};
+    const farcasterName = untrustedData?.inputText || '';
+
+    let fid = '354795';
+    if (farcasterName.trim() !== '') {
+      // Fetch the FID for the given Farcaster name
+      fid = await fetchFid(farcasterName);
+    }
+
+    const auctionData = await fetchAuctionDataFromService(fid);
+
+    console.log('Auction data:', auctionData);
 }
 
 function generateImageUrl(auctionData, farcasterName) {
