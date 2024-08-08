@@ -1,11 +1,10 @@
 const https = require('https');
 const url = require('url');
 
-const DEFAULT_FID = '354795'; // Replace with your actual default FID
+const DEFAULT_FID = '354795';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
-// Helper function to perform HTTPS GET request
 function httpsGet(urlString) {
     return new Promise((resolve, reject) => {
         const options = url.parse(urlString);
@@ -17,13 +16,11 @@ function httpsGet(urlString) {
     });
 }
 
-// Fetch auction data from MoxieScout
 async function getAuctionData(fid) {
     try {
         const urlString = `https://moxiescout.vercel.app/auction/${fid}`;
         console.log(`Fetching auction data from URL: ${urlString}`);
-        
-        // Adding a 3-second delay to ensure data is ready
+
         await new Promise(resolve => setTimeout(resolve, 3000));
 
         const data = await httpsGet(urlString);
@@ -53,7 +50,6 @@ async function getAuctionData(fid) {
     }
 }
 
-// Fetch FID from Farcaster
 async function fetchFid(farcasterName) {
     try {
         console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
@@ -72,7 +68,6 @@ async function fetchFid(farcasterName) {
     }
 }
 
-// Function to fetch auction details based on Farcaster name
 async function fetchAuctionDetails(farcasterName) {
     let fid = DEFAULT_FID;
     let displayName = 'Default Account';
@@ -92,7 +87,6 @@ async function fetchAuctionDetails(farcasterName) {
     return { auctionData, displayName };
 }
 
-// Function to generate the image URL based on auction data
 function generateImageUrl(auctionData, displayName) {
     let text;
     if (auctionData.error) {
@@ -114,7 +108,6 @@ Auction End:     ${auctionData.auctionEnd.padEnd(20)}  Total Bid Value: ${auctio
     return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodedText}&font=monospace&size=35`;
 }
 
-// Main handler function
 module.exports = async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
 
@@ -136,20 +129,25 @@ module.exports = async (req, res) => {
     <meta property="fc:frame" content="vNext">
     <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
-    <meta property="fc:frame:button:1" content="View" onclick="fetchAuctionData()">
+    <meta property="fc:frame:button:1" content="View">
     <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
 </head>
 <body>
     <h1>Auction Details for ${displayName}</h1>
-    <img src="${generateImageUrl(auctionData, displayName)}" alt="Auction Details" style="max-width: 100%; height: auto;">
+    <img src="${DEFAULT_IMAGE_URL}" alt="Auction Details" style="max-width: 100%; height: auto;">
+    <input type="text" name="farcasterName" placeholder="Enter Farcaster name">
+    <button onclick="fetchAuctionData()">View</button>
     <script>
         async function fetchAuctionData() {
             const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
+            console.log('Fetching data for Farcaster name:', farcasterName);
+
             const response = await fetch('https://aaron-v-fan-token.vercel.app/api/getAuctionDetails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ untrustedData: { inputText: farcasterName } })
             });
+
             const result = await response.text();
             document.body.innerHTML = result;
         }
@@ -172,20 +170,25 @@ module.exports = async (req, res) => {
     <meta property="fc:frame" content="vNext">
     <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
-    <meta property="fc:frame:button:1" content="Try Again" onclick="fetchAuctionData()">
+    <meta property="fc:frame:button:1" content="Try Again">
     <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
 </head>
 <body>
     <h1>Error</h1>
     <p>Failed to fetch auction data. Please try again.</p>
+    <input type="text" name="farcasterName" placeholder="Enter Farcaster name">
+    <button onclick="fetchAuctionData()">Try Again</button>
     <script>
         async function fetchAuctionData() {
             const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
+            console.log('Fetching data for Farcaster name:', farcasterName);
+
             const response = await fetch('https://aaron-v-fan-token.vercel.app/api/getAuctionDetails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ untrustedData: { inputText: farcasterName } })
             });
+
             const result = await response.text();
             document.body.innerHTML = result;
         }
