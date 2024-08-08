@@ -46,28 +46,22 @@ async function getAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const leftColumn = [
-        `Clearing Price: ${auctionData.clearingPrice}`,
-        `Auction Supply: ${auctionData.auctionSupply}`,
-        `Auction Start: ${auctionData.auctionStart}`,
-        `Auction End: ${auctionData.auctionEnd}`
-    ].join('%0A');
+    const text = `
+Auction for ${displayName}
 
-    const rightColumn = [
-        `Total Orders: ${auctionData.totalOrders}`,
-        `Unique Bidders: ${auctionData.uniqueBidders}`,
-        `Status: ${auctionData.status}`,
-        `Total Bid Value: ${auctionData.totalBidValue}`
-    ].join('%0A');
+Clearing Price:  ${auctionData.clearingPrice.padEnd(20)}  Total Orders:    ${auctionData.totalOrders}
+Auction Supply:  ${auctionData.auctionSupply.padEnd(20)}  Unique Bidders:  ${auctionData.uniqueBidders}
+Auction Start:   ${auctionData.auctionStart.padEnd(20)}  Status:          ${auctionData.status}
+Auction End:     ${auctionData.auctionEnd.padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue}
+    `.trim();
 
-    const text = `Auction for ${displayName}%0A%0A${leftColumn}%0A%0A${rightColumn}`;
-    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=arial&size=20`;
+    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=30`;
 }
 
 module.exports = async (req, res) => {
     console.log('Received request:', req.method, req.url);
     console.log('Request headers:', req.headers);
-    console.log('Request body:', req.body);
+    console.log('Request body:', JSON.stringify(req.body));
 
     const defaultImageUrl = 'https://www.aaronvick.com/Moxie/11.JPG';
 
@@ -169,7 +163,7 @@ module.exports = async (req, res) => {
             res.status(200).send(html);
         } catch (error) {
             console.error('Error in getAuctionDetails:', error.message);
-            const errorImageUrl = `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent("Error: Failed to fetch auction data. Please try again.")}&font=arial&size=20`;
+            const errorImageUrl = `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent("Error: Failed to fetch auction data. Please try again.")}&font=arial&size=30`;
             res.status(500).send(`
                 <!DOCTYPE html>
                 <html lang="en">
