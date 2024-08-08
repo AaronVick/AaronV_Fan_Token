@@ -26,41 +26,47 @@ function httpsGet(urlString, timeout = 5000) {
   });
 }
 
-async function getAuctionData(fid, retries = 1) {
+async function getAuctionData(fid) {
   try {
     const url = `https://moxiescout.vercel.app/auction/${fid}`;
+    console.log(`Preparing to fetch auction data from URL: ${url}`);
+
+    // Wait for 3 seconds before fetching
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
     console.log(`Fetching auction data from URL: ${url}`);
+    const response = await fetch(url);
+    const data = await response.text();
 
-    const data = await httpsGet(url, 5000); // 5-second timeout
-
-    if (data.includes("animate-pulse") && retries > 0) {
-      console.log('Page is still loading, retrying...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return getAuctionData(fid, retries - 1);
-    }
+    console.log('Received HTML content. Length:', data.length);
 
     if (data.includes("Failed to load auction details. Please try again later.") || data.includes("404: This page could not be found.")) {
       console.log('No auction data available');
       return { error: "No Auction Data Available" };
     }
 
-    const auctionData = {};
-    const dataPoints = [
-      'Clearing Price', 'Auction Supply', 'Auction Start', 'Auction End',
-      'Total Orders', 'Unique Bidders', 'Status', 'Total Bid Value'
-    ];
+    const auctionData = {
+      clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+    };
 
-    dataPoints.forEach(point => {
-      const regex = new RegExp(`${point}<\\/div><div[^>]*>([^<]+)`);
-      const match = data.match(regex);
-      auctionData[point.replace(/\s+/g, '').charAt(0).toLowerCase() + point.replace(/\s+/g, '').slice(1)] = match ? match[1].trim() : 'N/A';
-    });
+    // Check if all values are 'N/A', which might indicate a parsing issue
+    if (Object.values(auctionData).every(value => value === 'N/A')) {
+      console.log('Failed to parse auction data. All values are N/A.');
+      return { error: "Failed to parse auction data" };
+    }
 
     console.log('Parsed auction data:', auctionData);
     return auctionData;
   } catch (error) {
     console.error('Error fetching auction data:', error.message);
-    return { error: "Failed to fetch auction data: " + error.message };
+    return { error: "Failed to fetch auction data" };
   }
 }
 
