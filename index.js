@@ -18,8 +18,10 @@ function httpsGet(urlString, headers = {}) {
 async function getAuctionData(fid) {
     try {
         console.log(`Fetching auction data for FID: ${fid}`);
-        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
-        console.log('MoxieScout response received:', data);
+        const moxieUrl = `https://moxiescout.vercel.app/auction/${fid}`;
+        console.log('MoxieScout URL:', moxieUrl);
+        const data = await httpsGet(moxieUrl);
+        console.log('MoxieScout raw response:', data);
 
         if (data.includes("Failed to load auction details. Please try again later.")) {
             console.log('No auction data available');
@@ -55,7 +57,7 @@ Auction Start:   ${auctionData.auctionStart.padEnd(20)}  Status:          ${auct
 Auction End:     ${auctionData.auctionEnd.padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue}
     `.trim();
 
-    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=30`;
+    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
 }
 
 module.exports = async (req, res) => {
@@ -105,11 +107,14 @@ module.exports = async (req, res) => {
                         'API-KEY': process.env.FarQuestAPI,
                         'accept': 'application/json'
                     };
-                    console.log('FarQuest API Key:', process.env.FarQuestAPI); // Log the API key (be careful with this in production)
+                    console.log('FarQuest API Key:', process.env.FarQuestAPI); // Be careful with logging API keys
                     console.log('Fetching FID for:', farcasterName);
-                    const fidData = await httpsGet(`https://build.far.quest/farcaster/v2/user-by-username?username=${encodeURIComponent(farcasterName)}`, headers);
-                    console.log('FarQuest response:', fidData);
+                    const fidUrl = `https://build.far.quest/farcaster/v2/user-by-username?username=${encodeURIComponent(farcasterName)}`;
+                    console.log('FarQuest API URL:', fidUrl);
+                    const fidData = await httpsGet(fidUrl, headers);
+                    console.log('FarQuest raw response:', fidData);
                     const fidJson = JSON.parse(fidData);
+                    console.log('FarQuest parsed response:', fidJson);
                     if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
                         fid = fidJson.result.user.fid;
                         displayName = farcasterName;
@@ -163,7 +168,7 @@ module.exports = async (req, res) => {
             res.status(200).send(html);
         } catch (error) {
             console.error('Error in getAuctionDetails:', error.message);
-            const errorImageUrl = `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent("Error: Failed to fetch auction data. Please try again.")}&font=arial&size=30`;
+            const errorImageUrl = `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent("Error: Failed to fetch auction data. Please try again.")}&font=arial&size=35`;
             res.status(500).send(`
                 <!DOCTYPE html>
                 <html lang="en">
