@@ -1,7 +1,11 @@
 const https = require('https');
 const url = require('url');
+const fs = require('fs');
+const path = require('path');
 
-// ... (other constants and functions remain the same)
+const DEFAULT_FID = '354795';
+const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
+const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
 function httpsGet(urlString, timeout = 5000) {
   return new Promise((resolve, reject) => {
@@ -60,13 +64,95 @@ async function getAuctionData(fid, retries = 1) {
   }
 }
 
-// ... (rest of the code remains the same)
+async function fetchFid(farcasterName) {
+  try {
+    console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
+    const data = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
+    const fidJson = JSON.parse(data);
+    console.log('FID JSON Response:', fidJson);
+
+    if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
+      return fidJson.result.user.fid;
+    } else {
+      throw new Error('FID not found in the response');
+    }
+  } catch (error) {
+    console.error('Error fetching FID:', error.message);
+    throw error;
+  }
+}
+
+async function fetchAuctionDetails(farcasterName) {
+  let fid = DEFAULT_FID;
+  let displayName = 'Default Account';
+
+  if (farcasterName.trim() !== '') {
+    try {
+      fid = await fetchFid(farcasterName);
+      displayName = farcasterName;
+      console.log(`Fetched FID: ${fid} for Farcaster name: ${farcasterName}`);
+    } catch (error) {
+      console.error('Error fetching FID:', error.message);
+      displayName = 'Invalid Farcaster name';
+    }
+  }
+
+  const auctionData = await getAuctionData(fid);
+  return { auctionData, displayName };
+}
+
+function generateImageUrl(auctionData, displayName) {
+  let text;
+  if (auctionData.error) {
+    text = `Error: ${auctionData.error}`;
+  } else {
+    text = `
+Auction for ${displayName}
+
+Clearing Price:  ${(auctionData.clearingPrice || 'N/A').padEnd(20)}  Total Orders:    ${auctionData.totalOrders || 'N/A'}
+Auction Supply:  ${(auctionData.auctionSupply || 'N/A').padEnd(20)}  Unique Bidders:  ${auctionData.uniqueBidders || 'N/A'}
+Auction Start:   ${(auctionData.auctionStart || 'N/A').padEnd(20)}  Status:          ${auctionData.status || 'N/A'}
+Auction End:     ${(auctionData.auctionEnd || 'N/A').padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue || 'N/A'}
+    `.trim();
+  }
+
+  const encodedText = encodeURIComponent(text);
+  console.log('Encoded text for image URL:', encodedText);
+  return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodedText}&font=monospace&size=35`;
+}
 
 module.exports = async (req, res) => {
-  // ... (GET handler remains the same)
+  if (req.url === '/favicon.ico') {
+    res.setHeader('Content-Type', 'image/x-icon');
+    return res.status(204).end();
+  }
+
+  if (req.method === 'GET') {
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Moxie Auction Frame</title>
+          <meta property="fc:frame" content="vNext">
+          <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}">
+          <meta property="fc:frame:input:text" content="Enter Farcaster name (optional)">
+          <meta property="fc:frame:button:1" content="View Auction Details">
+          <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+      </head>
+      <body>
+          <h1>Welcome to Moxie Auction Frame</h1>
+          <p>Enter a Farcaster name or click the button to view auction details.</p>
+      </body>
+      </html>
+    `;
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(200).send(html);
+  }
 
   if (req.method === 'POST') {
-    console.log('Received request:', JSON.stringify(req.body));
+    console.log('Received POST request:', JSON.stringify(req.body));
 
     try {
       const { untrustedData } = req.body || {};
@@ -77,25 +163,26 @@ module.exports = async (req, res) => {
       console.log('Auction data:', auctionData);
 
       const imageUrl = generateImageUrl(auctionData, displayName);
+      console.log('Generated image URL:', imageUrl);
 
       const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Moxie Auction Details</title>
-      <meta property="fc:frame" content="vNext">
-      <meta property="fc:frame:image" content="${imageUrl}">
-      <meta property="fc:frame:input:text" content="Enter Farcaster name">
-      <meta property="fc:frame:button:1" content="View">
-      <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
-  </head>
-  <body>
-      <h1>Auction Details for ${displayName}</h1>
-      <img src="${imageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moxie Auction Details</title>
+    <meta property="fc:frame" content="vNext">
+    <meta property="fc:frame:image" content="${imageUrl}">
+    <meta property="fc:frame:input:text" content="Enter Farcaster name">
+    <meta property="fc:frame:button:1" content="View">
+    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+</head>
+<body>
+    <h1>Auction Details for ${displayName}</h1>
+    <img src="${imageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
+</body>
+</html>
       `;
 
       res.setHeader('Content-Type', 'text/html');
@@ -104,23 +191,23 @@ module.exports = async (req, res) => {
       console.error('Error in index.js:', error.message);
       const errorImageUrl = generateImageUrl({ error: error.message }, 'Error');
       const html = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Error</title>
-      <meta property="fc:frame" content="vNext">
-      <meta property="fc:frame:image" content="${errorImageUrl}">
-      <meta property="fc:frame:input:text" content="Enter Farcaster name">
-      <meta property="fc:frame:button:1" content="Try Again">
-      <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
-  </head>
-  <body>
-      <h1>Error</h1>
-      <p>Failed to fetch auction data. Please try again.</p>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error</title>
+    <meta property="fc:frame" content="vNext">
+    <meta property="fc:frame:image" content="${errorImageUrl}">
+    <meta property="fc:frame:input:text" content="Enter Farcaster name">
+    <meta property="fc:frame:button:1" content="Try Again">
+    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
+</head>
+<body>
+    <h1>Error</h1>
+    <p>Failed to fetch auction data. Please try again.</p>
+</body>
+</html>
       `;
       return res.status(200).send(html);
     }
