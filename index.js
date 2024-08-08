@@ -46,16 +46,22 @@ async function getAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = [
-        `Auction for ${displayName}`,
+    const leftColumn = [
         `Clearing Price: ${auctionData.clearingPrice}`,
         `Auction Supply: ${auctionData.auctionSupply}`,
-        `Status: ${auctionData.status}`,
-        `Total Bid Value: ${auctionData.totalBidValue}`,
+        `Auction Start: ${auctionData.auctionStart}`,
+        `Auction End: ${auctionData.auctionEnd}`
+    ].join('%0A');
+
+    const rightColumn = [
         `Total Orders: ${auctionData.totalOrders}`,
-        `Unique Bidders: ${auctionData.uniqueBidders}`
-    ].join('|');
-    return `https://via.placeholder.com/800x400/1e3a8a/ffffff?text=${encodeURIComponent(text.replace(/\|/g, '%0A'))}`;
+        `Unique Bidders: ${auctionData.uniqueBidders}`,
+        `Status: ${auctionData.status}`,
+        `Total Bid Value: ${auctionData.totalBidValue}`
+    ].join('%0A');
+
+    const text = `Auction for ${displayName}%0A%0A${leftColumn}%0A%0A${rightColumn}`;
+    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=arial&size=20`;
 }
 
 module.exports = async (req, res) => {
@@ -105,7 +111,10 @@ module.exports = async (req, res) => {
                         'API-KEY': process.env.FarQuestAPI,
                         'accept': 'application/json'
                     };
-                    const fidData = await httpsGet(`https://build.far.quest/farcaster/v2/user-by-username?username=${farcasterName}`, headers);
+                    console.log('FarQuest API Key:', process.env.FarQuestAPI); // Log the API key (be careful with this in production)
+                    console.log('Fetching FID for:', farcasterName);
+                    const fidData = await httpsGet(`https://build.far.quest/farcaster/v2/user-by-username?username=${encodeURIComponent(farcasterName)}`, headers);
+                    console.log('FarQuest response:', fidData);
                     const fidJson = JSON.parse(fidData);
                     if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
                         fid = fidJson.result.user.fid;
@@ -160,7 +169,7 @@ module.exports = async (req, res) => {
             res.status(200).send(html);
         } catch (error) {
             console.error('Error in getAuctionDetails:', error.message);
-            const errorImageUrl = `https://via.placeholder.com/800x400/1e3a8a/ffffff?text=${encodeURIComponent("Error: Failed to fetch auction data. Please try again.")}`;
+            const errorImageUrl = `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent("Error: Failed to fetch auction data. Please try again.")}&font=arial&size=20`;
             res.status(500).send(`
                 <!DOCTYPE html>
                 <html lang="en">
