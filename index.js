@@ -3,6 +3,7 @@ const url = require('url');
 
 const DEFAULT_FID = '354795'; // Replace with your actual default FID
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
+const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
 function httpsGet(urlString) {
     return new Promise((resolve, reject) => {
@@ -18,7 +19,7 @@ function httpsGet(urlString) {
 async function getAuctionData(fid) {
     try {
         console.log(`Fetching auction data for FID: ${fid}`);
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds for MoxieScout
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for 3 seconds
         const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
         console.log('MoxieScout response received:', data);
 
@@ -54,7 +55,6 @@ async function fetchAuctionDetails(farcasterName) {
         try {
             console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
             const fidData = await httpsGet(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second for Warpcast
             const fidJson = JSON.parse(fidData);
             if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
                 fid = fidJson.result.user.fid;
@@ -74,8 +74,24 @@ async function fetchAuctionDetails(farcasterName) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
-    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
+    let text;
+    if (auctionData.error) {
+        text = `Error: ${auctionData.error}`;
+        return ERROR_IMAGE_URL;
+    } else {
+        text = `
+Auction for ${displayName}
+
+Clearing Price:  ${auctionData.clearingPrice.padEnd(20)}  Total Orders:    ${auctionData.totalOrders}
+Auction Supply:  ${auctionData.auctionSupply.padEnd(20)}  Unique Bidders:  ${auctionData.uniqueBidders}
+Auction Start:   ${auctionData.auctionStart.padEnd(20)}  Status:          ${auctionData.status}
+Auction End:     ${auctionData.auctionEnd.padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue}
+        `.trim();
+    }
+
+    const encodedText = encodeURIComponent(text);
+    console.log('Encoded text for image URL:', encodedText);
+    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodedText}&font=monospace&size=35`;
 }
 
 module.exports = async (req, res) => {
@@ -97,15 +113,14 @@ module.exports = async (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moxie Auction Details</title>
     <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${auctionData.error ? DEFAULT_IMAGE_URL : generateImageUrl(auctionData, displayName)}">
+    <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
     <meta property="fc:frame:button:1" content="View">
     <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
 </head>
 <body>
     <h1>Auction Details for ${displayName}</h1>
-    <img src="${auctionData.error ? DEFAULT_IMAGE_URL : generateImageUrl(auctionData, displayName)}" alt="Auction Details" style="max-width: 100%; height: auto;">
-    ${auctionData.error ? '<p>Error: ' + auctionData.error + '</p>' : ''}
+    <img src="${generateImageUrl(auctionData, displayName)}" alt="Auction Details" style="max-width: 100%; height: auto;">
     <script>
         async function fetchAuctionData() {
             const farcasterName = document.querySelector('input[name="farcasterName"]').value.trim();
