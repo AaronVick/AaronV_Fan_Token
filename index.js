@@ -1,5 +1,6 @@
 const https = require('https');
 const url = require('url');
+const axios = require('axios');
 
 const DEFAULT_FID = '354795'; // Replace with your actual default FID
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=Error';
@@ -100,9 +101,18 @@ module.exports = async (req, res) => {
 
             if (farcasterName.trim() !== '') {
                 try {
-                    const fidData = await httpsGet(`https://farquest.vercel.app/user-by-username?username=${farcasterName}`);
-                    const fidJson = JSON.parse(fidData);
-                    fid = fidJson.result.user.fid;
+                    const apiUrl = `https://build.far.quest/farcaster/v2/user-by-username?username=${farcasterName}`;
+                    const apiKey = process.env.FarQuestAPI;
+
+                    console.log('FarQuestAPI:', apiKey);
+
+                    const fidResponse = await axios.get(apiUrl, {
+                        headers: {
+                            'API-KEY': apiKey
+                        }
+                    });
+
+                    fid = fidResponse.data.result.user.fid;
                     displayName = farcasterName;
                 } catch (error) {
                     console.error('Error fetching FID:', error.message);
