@@ -19,7 +19,6 @@ function httpsGet(urlString) {
 async function getAuctionData(fid) {
     try {
         console.log(`Fetching auction data for FID: ${fid}`);
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for 3 seconds
         const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
         console.log('MoxieScout response received:', data);
 
