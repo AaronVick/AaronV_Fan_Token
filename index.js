@@ -17,18 +17,23 @@ function httpsGet(urlString, headers = {}) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = auctionData.error
-        ? `Error: ${auctionData.error}`
-        : `
+    let text;
+    if (auctionData.error) {
+        text = `Error: ${auctionData.error}`;
+    } else {
+        text = `
 Auction for ${displayName}
 
 Clearing Price:  ${auctionData.clearingPrice.padEnd(20)}  Total Orders:    ${auctionData.totalOrders}
 Auction Supply:  ${auctionData.auctionSupply.padEnd(20)}  Unique Bidders:  ${auctionData.uniqueBidders}
 Auction Start:   ${auctionData.auctionStart.padEnd(20)}  Status:          ${auctionData.status}
 Auction End:     ${auctionData.auctionEnd.padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue}
-    `.trim();
+        `.trim();
+    }
 
-    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
+    const encodedText = encodeURIComponent(text);
+    console.log('Encoded text for image URL:', encodedText);
+    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodedText}&font=monospace&size=35`;
 }
 
 module.exports = async (req, res) => {
@@ -40,6 +45,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
         console.log('Serving initial frame');
+        console.log('Initial frame image URL:', defaultImageUrl);
         const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -111,8 +117,17 @@ module.exports = async (req, res) => {
 
             console.log('Final auction data:', auctionData);
 
-            const imageUrl = generateImageUrl(auctionData, displayName);
+            let imageUrl = generateImageUrl(auctionData, displayName);
             console.log('Generated image URL:', imageUrl);
+
+            // Verify the image URL is valid
+            try {
+                new URL(imageUrl);
+                console.log('Image URL is valid');
+            } catch (error) {
+                console.error('Invalid image URL:', error.message);
+                imageUrl = defaultImageUrl; // Fallback to default image if URL is invalid
+            }
 
             const html = `
                 <!DOCTYPE html>
@@ -134,6 +149,7 @@ module.exports = async (req, res) => {
                 </html>
             `;
 
+            console.log('Final HTML fc:frame:image content:', imageUrl);
             console.log('Sending final response HTML');
             res.setHeader('Content-Type', 'text/html');
             return res.status(200).send(html);
