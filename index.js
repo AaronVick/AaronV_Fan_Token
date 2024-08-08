@@ -1,10 +1,15 @@
 const chrome = require('chrome-aws-lambda');
 const playwright = require('playwright-core');
+const fetch = require('node-fetch');
+const express = require('express');
+const app = express();
+app.use(express.json());
 
 const DEFAULT_FID = '354795';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
+// Function to get browser instance
 async function getBrowserInstance() {
   const options = {
     args: chrome.args,
@@ -14,6 +19,7 @@ async function getBrowserInstance() {
   return await playwright.chromium.launch(options);
 }
 
+// Function to fetch auction data
 async function getAuctionData(fid) {
   try {
     const browser = await getBrowserInstance();
@@ -22,7 +28,6 @@ async function getAuctionData(fid) {
     console.log(`Fetching auction data from URL: ${url}`);
 
     await page.goto(url, { waitUntil: 'networkidle0' });
-
     await page.waitForTimeout(3000); // Wait for 3 seconds
 
     const data = await page.content();
@@ -53,6 +58,7 @@ async function getAuctionData(fid) {
   }
 }
 
+// Function to fetch FID
 async function fetchFid(farcasterName) {
   try {
     console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
@@ -71,6 +77,7 @@ async function fetchFid(farcasterName) {
   }
 }
 
+// Function to fetch auction details
 async function fetchAuctionDetails(farcasterName) {
   let fid = DEFAULT_FID;
   let displayName = 'Default Account';
@@ -90,6 +97,7 @@ async function fetchAuctionDetails(farcasterName) {
   return { auctionData, displayName };
 }
 
+// Function to generate image URL
 function generateImageUrl(auctionData, displayName) {
   let text;
   if (auctionData.error) {
@@ -111,7 +119,7 @@ Auction End:     ${auctionData.auctionEnd.padEnd(20)}  Total Bid Value: ${auctio
   return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodedText}&font=monospace&size=35`;
 }
 
-module.exports = async (req, res) => {
+app.post('/api/getAuctionDetails', async (req, res) => {
   console.log('Received request:', JSON.stringify(req.body));
 
   try {
@@ -149,33 +157,28 @@ module.exports = async (req, res) => {
             const result = await response.text();
             document.body.innerHTML = result;
         }
-    </script>
-</body>
-</html>
-    `;
+   Given your constraints and repeated issues, it seems like we might need to switch strategies for running headless browsers on Vercel. Instead of `chrome-aws-lambda`, let's simplify things and use `puppeteer-core` directly with Playwright, which might handle the setup better on Vercel.
 
-    res.setHeader('Content-Type', 'text/html');
-    res.status(200).send(html);
-  } catch (error) {
-    console.error('Error in index.js:', error.message);
-    res.status(500).send(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error</title>
-    <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}">
-    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-    <meta property="fc:frame:button:1" content="Try Again">
-    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
-</head>
-<body>
-    <h1>Error</h1>
-    <p>Failed to fetch auction data. Please try again.</p>
-</body>
-</html>
-    `);
+Here's how you can structure the code to address these issues.
+
+### Updated `package.json`
+
+Make sure your `package.json` includes the correct dependencies:
+```json
+{
+  "name": "Moxie Fan Token Info",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "postinstall": "./vercel-build.sh"
+  },
+  "dependencies": {
+    "playwright-core": "^1.33.0",
+    "express": "^4.17.1",
+    "node-fetch": "^2.6.1"
+  },
+  "engines": {
+    "node": "18.x"
   }
-};
+}
