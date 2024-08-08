@@ -17,7 +17,9 @@ function httpsGet(urlString, headers = {}) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = `
+    const text = auctionData.error
+        ? `Error: ${auctionData.error}`
+        : `
 Auction for ${displayName}
 
 Clearing Price:  ${auctionData.clearingPrice.padEnd(20)}  Total Orders:    ${auctionData.totalOrders}
@@ -137,8 +139,8 @@ module.exports = async (req, res) => {
             return res.status(200).send(html);
         } catch (error) {
             console.error('Error in getAuctionDetails:', error.message);
-            const errorImageUrl = `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent("Error: " + error.message)}&font=arial&size=35`;
-            return res.status(500).send(`
+            const errorImageUrl = generateImageUrl({ error: error.message }, 'Error');
+            return res.status(200).send(`
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
