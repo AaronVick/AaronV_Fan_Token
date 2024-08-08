@@ -24,6 +24,9 @@ async function getAuctionData(fid) {
 
             if (data.includes("Failed to load auction details. Please try again later.")) {
                 console.log('No auction data available, retrying...');
+                if (attempt === MAX_RETRIES) {
+                    return { error: "No auction data available after multiple attempts" };
+                }
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                 continue;
             }
@@ -41,6 +44,9 @@ async function getAuctionData(fid) {
 
             if (Object.values(auctionData).every(value => value === 'N/A')) {
                 console.log('All data is N/A, retrying...');
+                if (attempt === MAX_RETRIES) {
+                    return { error: "Unable to parse auction data after multiple attempts" };
+                }
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                 continue;
             }
