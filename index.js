@@ -7,7 +7,11 @@ const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=
 
 function httpsGet(urlString) {
   return new Promise((resolve, reject) => {
-    https.get(urlString, (res) => {
+    const options = url.parse(urlString);
+    options.headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    };
+    https.get(options, (res) => {
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => resolve(data));
@@ -22,21 +26,29 @@ async function getAuctionData(fid) {
 
     const data = await httpsGet(url);
 
+    // Check if the page is still loading
+    if (data.includes("animate-pulse")) {
+      console.log('Page is still loading, retrying...');
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
+      return getAuctionData(fid); // Retry
+    }
+
     if (data.includes("Failed to load auction details. Please try again later.") || data.includes("404: This page could not be found.")) {
       console.log('No auction data available');
       return { error: "No Auction Data Available" };
     }
 
-    const auctionData = {
-      clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-    };
+    const auctionData = {};
+    const dataPoints = [
+      'Clearing Price', 'Auction Supply', 'Auction Start', 'Auction End',
+      'Total Orders', 'Unique Bidders', 'Status', 'Total Bid Value'
+    ];
+
+    dataPoints.forEach(point => {
+      const regex = new RegExp(`${point}<\\/div><div[^>]*>([^<]+)`);
+      const match = data.match(regex);
+      auctionData[point.replace(/\s+/g, '').charAt(0).toLowerCase() + point.replace(/\s+/g, '').slice(1)] = match ? match[1].trim() : 'N/A';
+    });
 
     console.log('Parsed auction data:', auctionData);
     return auctionData;
@@ -92,10 +104,10 @@ function generateImageUrl(auctionData, displayName) {
     text = `
 Auction for ${displayName}
 
-Clearing Price:  ${auctionData.clearingPrice.padEnd(20)}  Total Orders:    ${auctionData.totalOrders}
-Auction Supply:  ${auctionData.auctionSupply.padEnd(20)}  Unique Bidders:  ${auctionData.uniqueBidders}
-Auction Start:   ${auctionData.auctionStart.padEnd(20)}  Status:          ${auctionData.status}
-Auction End:     ${auctionData.auctionEnd.padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue}
+Clearing Price:  ${(auctionData.clearingPrice || 'N/A').padEnd(20)}  Total Orders:    ${auctionData.totalOrders || 'N/A'}
+Auction Supply:  ${(auctionData.auctionSupply || 'N/A').padEnd(20)}  Unique Bidders:  ${auctionData.uniqueBidders || 'N/A'}
+Auction Start:   ${(auctionData.auctionStart || 'N/A').padEnd(20)}  Status:          ${auctionData.status || 'N/A'}
+Auction End:     ${(auctionData.auctionEnd || 'N/A').padEnd(20)}  Total Bid Value: ${auctionData.totalBidValue || 'N/A'}
         `.trim();
   }
 
