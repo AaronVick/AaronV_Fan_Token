@@ -8,5 +8,8 @@
   "dependencies": {
     "chrome-aws-lambda": "^10.1.0",
     "puppeteer-core": "^10.1.0"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
