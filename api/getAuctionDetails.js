@@ -46,7 +46,15 @@ async function getAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, displayName) {
-    const text = `Auction for ${displayName}|Clearing Price: ${auctionData.clearingPrice}|Auction Supply: ${auctionData.auctionSupply}|Status: ${auctionData.status}|Total Bid Value: ${auctionData.totalBidValue}|Total Orders: ${auctionData.totalOrders}|Unique Bidders: ${auctionData.uniqueBidders}`;
+    const text = [
+        `Auction for ${displayName}`,
+        `Clearing Price: ${auctionData.clearingPrice}`,
+        `Auction Supply: ${auctionData.auctionSupply}`,
+        `Status: ${auctionData.status}`,
+        `Total Bid Value: ${auctionData.totalBidValue}`,
+        `Total Orders: ${auctionData.totalOrders}`,
+        `Unique Bidders: ${auctionData.uniqueBidders}`
+    ].join('|');
     return `https://via.placeholder.com/800x400/1e3a8a/ffffff?text=${encodeURIComponent(text.replace(/\|/g, '%0A'))}`;
 }
 
