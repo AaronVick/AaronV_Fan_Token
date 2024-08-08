@@ -27,46 +27,59 @@ function httpsGet(urlString, timeout = 5000) {
 }
 
 async function getAuctionData(fid) {
-  try {
-    const url = `https://moxiescout.vercel.app/auction/${fid}`;
-    console.log(`Preparing to fetch auction data from URL: ${url}`);
+  const maxAttempts = 3;
+  const delayBetweenAttempts = 3000; // 3 seconds
 
-    // Wait for 3 seconds before fetching
-    await new Promise(resolve => setTimeout(resolve, 3000));
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const url = `https://moxiescout.vercel.app/auction/${fid}`;
+      console.log(`Attempt ${attempt}: Fetching auction data from URL: ${url}`);
 
-    console.log(`Fetching auction data from URL: ${url}`);
-    const response = await fetch(url);
-    const data = await response.text();
+      const response = await fetch(url);
+      const data = await response.text();
 
-    console.log('Received HTML content. Length:', data.length);
+      console.log(`Received HTML content. Length: ${data.length}`);
 
-    if (data.includes("Failed to load auction details. Please try again later.") || data.includes("404: This page could not be found.")) {
-      console.log('No auction data available');
-      return { error: "No Auction Data Available" };
+      if (data.includes("Failed to load auction details. Please try again later.") || data.includes("404: This page could not be found.")) {
+        console.log('No auction data available');
+        return { error: "No Auction Data Available" };
+      }
+
+      const auctionData = {
+        clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+      };
+
+      // Check if all values are 'N/A', which might indicate a parsing issue
+      if (Object.values(auctionData).every(value => value === 'N/A')) {
+        console.log('Failed to parse auction data. All values are N/A.');
+        if (attempt < maxAttempts) {
+          console.log(`Waiting ${delayBetweenAttempts}ms before next attempt...`);
+          await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+          continue;
+        } else {
+          return { error: "Failed to parse auction data" };
+        }
+      }
+
+      console.log('Parsed auction data:', auctionData);
+      return auctionData;
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error.message);
+      if (attempt < maxAttempts) {
+        console.log(`Waiting ${delayBetweenAttempts}ms before next attempt...`);
+        await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+      } else {
+        console.error('All attempts failed');
+        return { error: "Failed to fetch auction data" };
+      }
     }
-
-    const auctionData = {
-      clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-      totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
-    };
-
-    // Check if all values are 'N/A', which might indicate a parsing issue
-    if (Object.values(auctionData).every(value => value === 'N/A')) {
-      console.log('Failed to parse auction data. All values are N/A.');
-      return { error: "Failed to parse auction data" };
-    }
-
-    console.log('Parsed auction data:', auctionData);
-    return auctionData;
-  } catch (error) {
-    console.error('Error fetching auction data:', error.message);
-    return { error: "Failed to fetch auction data" };
   }
 }
 
