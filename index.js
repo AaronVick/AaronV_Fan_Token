@@ -148,7 +148,7 @@ module.exports = async (req, res) => {
 </head>
 <body>
     <h1>Auction Details for ${displayName}</h1>
-    <img src="${DEFAULT_IMAGE_URL}" alt="Auction Details" style="max-width: 100%; height: auto;">
+    <img src="${generateImageUrl(auctionData, displayName)}" alt="Auction Details" style="max-width: 100%; height: auto;">
     <input type="text" name="farcasterName" placeholder="Enter Farcaster name">
     <button onclick="fetchAuctionData()">View</button>
     <script>
