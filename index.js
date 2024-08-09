@@ -1,12 +1,7 @@
-const { AirstackSDK } = require('@airstack/node');
 const fetch = require('node-fetch');
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
-
-const airstackSDK = new AirstackSDK({
-  apiKey: process.env.AIRSTACK_API_KEY,
-});
 
 async function fetchFid(farcasterName) {
   try {
@@ -28,38 +23,49 @@ async function fetchFid(farcasterName) {
 
 async function getFanTokenDataByFid(fid) {
   try {
-    const response = await airstackSDK.fetchQuery({
-      query: `
-        query GetFanTokenDataByFid($_eq: String, $_in: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
-          FarcasterFanTokenAuctions(
-            input: {filter: {entityId: {_eq: $_eq}, entityType: {_in: $_in}}, blockchain: $blockchain, limit: $limit}
-          ) {
-            FarcasterFanTokenAuction {
-              auctionId
-              auctionSupply
-              decimals
-              entityId
-              entityName
-              entitySymbol
-              estimatedEndTimestamp
-              estimatedStartTimestamp
-              minBiddingAmount
-              minPriceInMoxie
-              subjectAddress
-              status
-            }
+    const query = `
+      query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
+        FarcasterFanTokenAuctions(
+          input: {filter: {entityId: {_eq: $fid}, entityType: {_in: $entityTypes}}, blockchain: $blockchain, limit: $limit}
+        ) {
+          FarcasterFanTokenAuction {
+            auctionId
+            auctionSupply
+            decimals
+            entityId
+            entityName
+            entitySymbol
+            estimatedEndTimestamp
+            estimatedStartTimestamp
+            minBiddingAmount
+            minPriceInMoxie
+            subjectAddress
+            status
           }
         }
-      `,
-      variables: {
-        _eq: fid,
-        _in: ['MOXIE'],
-        blockchain: 'ethereum',
-        limit: 1,
+      }
+    `;
+
+    const variables = {
+      fid: fid,
+      entityTypes: ['MOXIE'],
+      blockchain: 'ethereum',
+      limit: 1,
+    };
+
+    const response = await fetch('https://api.airstack.xyz/gql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': process.env.AIRSTACK_API_KEY,
       },
+      body: JSON.stringify({ query, variables }),
     });
 
-    const auctionData = response.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+    const jsonResponse = await response.json();
+    console.log('Airstack API Response:', JSON.stringify(jsonResponse, null, 2));
+
+    const auctionData = jsonResponse.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
     if (!auctionData) {
       return { error: "No Auction Data Available" };
     }
@@ -90,7 +96,7 @@ Status:          ${auctionData.status}
 module.exports = async (req, res) => {
   console.log('Received request:', JSON.stringify(req.body));
 
-  let imageUrl = DEFAULT_IMAGE_URL;  // Set a default image URL
+  let imageUrl = DEFAULT_IMAGE_URL;
 
   try {
     const { untrustedData } = req.body || {};
