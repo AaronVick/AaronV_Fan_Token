@@ -1,158 +1,84 @@
-import {
-  IntrospectionInputObjectType,
-  print,
-  parse,
-  ObjectFieldNode,
-  FieldNode,
-} from 'graphql';
+// manual_module/airstack-node-sdk-main/src/utils/addCursorVariable.ts
 
-import { getArguments } from './query';
-import {
-  SchemaMap,
-  getIntrospectionQueryMap,
-} from './query/getIntrospectionQuery';
-import { moveArgumentsToParams } from './query/moveArgumentsToParams';
-import { getQueries } from './query/getQueries';
+import { parse, print, visit, OperationDefinitionNode, SelectionSetNode, FieldNode } from 'graphql';
 import { QueryContext } from '../types';
-import { addPageInfoFields } from './addPageInfoFields';
-import { config } from '../config';
 
-type InputFields = readonly ObjectFieldNode[];
-type QueryWithoutCursor = {
-  queryName: string;
-  inputFields: InputFields;
-  query: FieldNode;
-};
+export function addCursorVariable(
+  query: string,
+  cursor: string,
+  context: QueryContext
+): string {
+  const ast = parse(query);
+  const variableName = `cursor_${context.variableNamesMap['cursor'] || 0}`;
+  context.variableNamesMap['cursor'] = (context.variableNamesMap['cursor'] || 0) + 1;
 
-function getQueriesWithoutCursorAndUpdateContext(
-  queries: FieldNode[],
-  schemaMap: SchemaMap,
-  globalCtx: QueryContext
-): QueryWithoutCursor[] {
-  const queriesWithCursor: QueryWithoutCursor[] = [];
+  const newAst = visit(ast, {
+    OperationDefinition(node: OperationDefinitionNode) {
+      return {
+        ...node,
+        variableDefinitions: [
+          ...(node.variableDefinitions || []),
+          {
+            kind: 'VariableDefinition',
+            variable: {
+              kind: 'Variable',
+              name: {
+                kind: 'Name',
+                value: variableName,
+              },
+            },
+            type: {
+              kind: 'NamedType',
+              name: {
+                kind: 'Name',
+                value: 'String',
+              },
+            },
+          },
+        ],
+      };
+    },
+    SelectionSet(node: SelectionSetNode) {
+      const hasPageInfo = node.selections.some(
+        (selection) =>
+          selection.kind === 'Field' && selection.name.value === 'pageInfo'
+      );
 
-  queries.forEach((query) => {
-    const { args, inputFields } = getArguments(schemaMap, query, {
-      variableNamesMap: {},
-    });
-    const cursor = args.find((arg) => arg.name === 'cursor');
-    const queryName = query.name.value;
+      if (hasPageInfo) {
+        return {
+          ...node,
+          selections: [
+            ...node.selections,
+            {
+              kind: 'Field',
+              name: {
+                kind: 'Name',
+                value: 'cursor',
+              },
+              arguments: [
+                {
+                  kind: 'Argument',
+                  name: {
+                    kind: 'Name',
+                    value: 'cursor',
+                  },
+                  value: {
+                    kind: 'Variable',
+                    name: {
+                      kind: 'Name',
+                      value: variableName,
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        };
+      }
 
-    if (!cursor) {
-      queriesWithCursor.push({
-        queryName,
-        inputFields,
-        query,
-      });
-      return;
-    }
-
-    // if cursor value is some fixed value given by user, then we don't need to add variable
-    if (cursor.valueKind !== 'Variable') return;
-
-    const variableName =
-      cursor.assignedVariable || cursor.uniqueName || cursor.name;
-
-    addPageInfoFields(query, variableName);
-
-    globalCtx.variableNamesMap[variableName] =
-      (globalCtx.variableNamesMap[variableName] || 0) + 1;
+      return node;
+    },
   });
-  return queriesWithCursor;
-}
 
-async function addVariable(
-  queryString: string,
-  callback: (value: string) => void
-) {
-  try {
-    const schemaMap = await getIntrospectionQueryMap();
-    const queryDocument = parse(queryString);
-    const queries = getQueries(queryDocument);
-
-    const globalCtx: QueryContext = {
-      variableNamesMap: {},
-    };
-
-    const queriesWithoutCursor = getQueriesWithoutCursorAndUpdateContext(
-      queries,
-      schemaMap,
-      globalCtx
-    );
-
-    queriesWithoutCursor.forEach(({ queryName, inputFields, query }) => {
-      const queryInputTypeName = queryName.toLowerCase() + 'input';
-
-      const queryInputType = schemaMap[
-        queryInputTypeName
-      ] as IntrospectionInputObjectType;
-
-      const querySupportsCursor = queryInputType.inputFields.find(
-        (field) => field.name === 'cursor'
-      );
-
-      if (!querySupportsCursor) {
-        if (config.env === 'dev') {
-          console.error(`query "${queryName}" does not support pagination.`);
-        }
-        return;
-      }
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      inputFields.push({
-        kind: 'ObjectField',
-        name: {
-          kind: 'Name',
-          value: 'cursor',
-        },
-        value: {
-          kind: 'StringValue',
-        },
-      });
-
-      // get arguments with cursor, so we can get the args with new args ref
-      const { args: argsWithCursor } = getArguments(
-        schemaMap,
-        query,
-        globalCtx
-      );
-
-      const cursor = argsWithCursor.find((arg) => arg.name === 'cursor');
-
-      // cursor should be there, but just in case
-      if (!cursor) {
-        return;
-      }
-
-      moveArgumentsToParams(queryDocument, [cursor]);
-      addPageInfoFields(query, cursor.uniqueName || cursor.name);
-    });
-
-    const updatedQueryString = print(queryDocument);
-    callback(updatedQueryString);
-  } catch (error) {
-    if (config.env === 'dev') {
-      console.error(
-        'unable to add cursor to query, please make sure the query is valid'
-      );
-    }
-    console.error(error);
-    callback(queryString);
-  }
-}
-
-const promiseCache: Record<string, Promise<string>> = {};
-
-export async function addCursorVariable(queryString: string) {
-  const cachedPromise = promiseCache[queryString];
-  if (cachedPromise) return cachedPromise;
-
-  promiseCache[queryString] = new Promise<string>((resolve) =>
-    addVariable(queryString, (query: string) => {
-      resolve(query);
-      delete promiseCache[queryString];
-    })
-  );
-
-  return promiseCache[queryString];
+  return print(newAst);
 }
