@@ -1,19 +1,19 @@
-// Import necessary modules and functions from the manually included TypeScript files
 import { init } from './manual_modules/airstack-node-sdk-main/src/init';
 import { fetchQuery } from './manual_modules/airstack-node-sdk-main/src/apis/fetchQuery';
-
-// Other imports if needed from the SDK
-// For example, if you need other utilities or functions:
-// import { someUtilityFunction } from './manual_modules/airstack-node-sdk-main/src/utils/someUtilityFunction';
+import fetch from 'node-fetch';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
-// Main function to handle the application logic
+// Initialize Airstack SDK
+init(process.env.AIRSTACK_API_KEY || '');
+
 async function fetchFid(farcasterName: string): Promise<string> {
     try {
+        console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
         const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
         const fidJson = await response.json();
+        console.log('FID JSON Response:', fidJson);
 
         if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
             return fidJson.result.user.fid.toString();
@@ -21,7 +21,7 @@ async function fetchFid(farcasterName: string): Promise<string> {
             throw new Error('FID not found in the response');
         }
     } catch (error) {
-        console.error('Error fetching FID:', error.message);
+        console.error('Error fetching FID:', error);
         throw error;
     }
 }
@@ -58,23 +58,16 @@ async function getFanTokenDataByFid(fid: string) {
             limit: 1,
         };
 
-        const response = await fetch('https://api.airstack.xyz/gql', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': process.env.AIRSTACK_API_KEY,
-            },
-            body: JSON.stringify({ query, variables }),
-        });
+        const response = await fetchQuery(query, variables);
+        console.log('Airstack API Response:', JSON.stringify(response, null, 2));
 
-        const jsonResponse = await response.json();
-        const auctionData = jsonResponse.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+        const auctionData = response.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
         if (!auctionData) {
             return { error: "No Auction Data Available" };
         }
         return auctionData;
     } catch (error) {
-        console.error('Error fetching fan token data:', error.message);
+        console.error('Error fetching fan token data:', error);
         return { error: "Failed to fetch auction data" };
     }
 }
@@ -88,15 +81,14 @@ function generateImageUrl(auctionData: any, farcasterName: string): string {
 Auction for ${farcasterName}
 
 Clearing Price:  ${auctionData.minPriceInMoxie.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
-Auction Start:   ${new Date(auctionData.estimatedStartTimestamp * 1000).toLocaleString()}
-Auction End:     ${new Date(auctionData.estimatedEndTimestamp * 1000).toLocaleString()}
+Auction Start:   ${new Date(parseInt(auctionData.estimatedStartTimestamp) * 1000).toLocaleString()}
+Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString()}
 Status:          ${auctionData.status}
-  `.trim();
+    `.trim();
 
     return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
 }
 
-// Main function to handle requests
 export default async function handleRequest(req: any, res: any) {
     console.log('Received request:', JSON.stringify(req.body));
 
@@ -140,7 +132,7 @@ export default async function handleRequest(req: any, res: any) {
         res.setHeader('Content-Type', 'text/html');
         res.status(200).send(html);
     } catch (error) {
-        console.error('Error in index.ts:', error.message);
+        console.error('Error in handleRequest:', error);
         res.status(500).send(`
 <!DOCTYPE html>
 <html lang="en">
