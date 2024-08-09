@@ -3,10 +3,7 @@
   "builds": [
     {
       "src": "index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["manual_module/**/*"]
-      }
+      "use": "@vercel/node@2.5.10"
     }
   ],
   "routes": [
@@ -14,5 +11,8 @@
       "src": "/(.*)",
       "dest": "/index.ts"
     }
-  ]
+  ],
+  "env": {
+    "NODE_VERSION": "20.x"
+  }
 }
