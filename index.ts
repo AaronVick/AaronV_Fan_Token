@@ -1,5 +1,5 @@
-import { init } from './manual_modules/airstack-node-sdk-main/src/init';
-import { fetchQuery } from './manual_modules/airstack-node-sdk-main/src/apis/fetchQuery';
+import { init } from '../manual_modules/airstack-node-sdk-main/src/init';
+import { fetchQuery } from '../manual_modules/airstack-node-sdk-main/src/apis/fetchQuery';
 import fetch from 'node-fetch';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
