@@ -1,7 +1,11 @@
+const { init, fetchQuery } = require('@airstack/node');
 const fetch = require('node-fetch');
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
+
+// Initialize Airstack
+init(process.env.AIRSTACK_API_KEY);
 
 async function fetchFid(farcasterName) {
   try {
@@ -53,19 +57,10 @@ async function getFanTokenDataByFid(fid) {
       limit: 1,
     };
 
-    const response = await fetch('https://api.airstack.xyz/gql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': process.env.AIRSTACK_API_KEY,
-      },
-      body: JSON.stringify({ query, variables }),
-    });
+    const response = await fetchQuery(query, variables);
+    console.log('Airstack API Response:', JSON.stringify(response, null, 2));
 
-    const jsonResponse = await response.json();
-    console.log('Airstack API Response:', JSON.stringify(jsonResponse, null, 2));
-
-    const auctionData = jsonResponse.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+    const auctionData = response.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
     if (!auctionData) {
       return { error: "No Auction Data Available" };
     }
