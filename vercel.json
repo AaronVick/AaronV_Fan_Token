@@ -12,5 +12,5 @@
       "dest": "/index.ts"
     }
   ],
-  "includeFiles": ["manual_module/**"]
+  "includeFiles": ["manual_modules/**"]
 }
