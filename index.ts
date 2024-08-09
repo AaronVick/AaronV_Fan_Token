@@ -1,6 +1,5 @@
-const { init } = require('./manual_modules/airstack-node-sdk-main/src/init');
-const { fetchQuery } = require('./manual_modules/airstack-node-sdk-main/src/apis/fetchQuery');
-const fetch = require('node-fetch');
+import { init, fetchQuery } from "@airstack/node";
+import fetch from 'node-fetch';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
@@ -59,7 +58,7 @@ async function getFanTokenDataByFid(fid: string) {
         const response = await fetchQuery(query, variables);
         console.log('Airstack API Response:', JSON.stringify(response, null, 2));
 
-        const auctionData = response.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+        const auctionData = response.data?.FarcasterFanTokenAuctions?.FarcasterFanTokenAuction?.[0];
         if (!auctionData) {
             return { error: "No Auction Data Available" };
         }
@@ -78,7 +77,7 @@ function generateImageUrl(auctionData: any, farcasterName: string): string {
     const text = `
 Auction for ${farcasterName}
 
-Clearing Price:  ${auctionData.minPriceInMoxie.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
+Clearing Price:  ${auctionData.minPriceInMoxie?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
 Auction Start:   ${new Date(parseInt(auctionData.estimatedStartTimestamp) * 1000).toLocaleString()}
 Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString()}
 Status:          ${auctionData.status}
@@ -87,7 +86,7 @@ Status:          ${auctionData.status}
     return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
 }
 
-async function handleRequest(req: any, res: any) {
+export default async function handler(req: any, res: any) {
     console.log('Received request:', JSON.stringify(req.body));
 
     let imageUrl = DEFAULT_IMAGE_URL;
@@ -130,7 +129,7 @@ async function handleRequest(req: any, res: any) {
         res.setHeader('Content-Type', 'text/html');
         res.status(200).send(html);
     } catch (error) {
-        console.error('Error in handleRequest:', error);
+        console.error('Error in handler:', error);
         res.status(500).send(`
 <!DOCTYPE html>
 <html lang="en">
@@ -139,7 +138,7 @@ async function handleRequest(req: any, res: any) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Error</title>
     <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${imageUrl}">
+    <meta property="fc:frame:image" content="${ERROR_IMAGE_URL}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
     <meta property="fc:frame:button:1" content="Try Again">
     <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
@@ -152,6 +151,3 @@ async function handleRequest(req: any, res: any) {
         `);
     }
 }
-
-// Export the handler for Vercel
-module.exports = handleRequest;
