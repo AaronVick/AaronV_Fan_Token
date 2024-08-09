@@ -1,6 +1,10 @@
-import { config, Env } from './config';
+// manual_module/airstack-node-sdk-main/src/init.ts
 
-export function init(key: string, env?: Env) {
-  config.authKey = key;
-  config.env = env || 'dev';
+import { config, ConfigType } from './config';
+
+export function init(authKey: string, options?: Partial<ConfigType>) {
+  config.authKey = authKey;
+  if (options) {
+    Object.assign(config, options);
+  }
 }
