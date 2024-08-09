@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": "20.x"  
+  },
   "dependencies": {
-    "dotenv": "^16.0.3",       // Ensure this is present
     "node-fetch": "^3.3.0",
     "@airstack/node": "latest"
   }
