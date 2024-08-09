@@ -1,7 +1,7 @@
 // index.ts
 
-const { init, fetchQuery } = require('./manual_module/airstack-node-sdk-main/src');
-const fetch = require('node-fetch');
+import https from 'https';
+import { init, fetchQuery } from './manual_module/airstack-node-sdk-main/src';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
@@ -9,10 +9,25 @@ const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=
 // Initialize Airstack SDK
 init(process.env.AIRSTACK_API_KEY || '');
 
+function fetch(url: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        resolve(JSON.parse(data));
+      });
+    }).on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
 async function fetchFid(farcasterName: string): Promise<string> {
     try {
-        const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
-        const fidJson = await response.json();
+        const fidJson = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
 
         if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
             return fidJson.result.user.fid.toString();
