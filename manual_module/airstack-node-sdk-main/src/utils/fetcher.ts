@@ -1,7 +1,6 @@
-import { config } from '../config.js';
-import { AIRSTACK_ENDPOINT } from '../constants.js';
-import { Variables } from '../types.js';
-import fetch from 'node-fetch';
+const { config } = require('../config');
+const { AIRSTACK_ENDPOINT } = require('../constants');
+const fetch = require('node-fetch');
 
 export async function _fetch<ResponseType = any>(
   query: string,
