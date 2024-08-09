@@ -1,6 +1,30 @@
-const { config } = require('../config');
-const { AIRSTACK_ENDPOINT } = require('../constants');
-const fetch = require('node-fetch').default;
+import https from 'https';
+import { config } from '../config';
+import { AIRSTACK_ENDPOINT } from '../constants';
+import { Variables } from '../types';
+
+function fetch(url: string, options: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        resolve({ json: () => JSON.parse(data) });
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
+  });
+}
 
 export async function _fetch<ResponseType = any>(
   query: string,
@@ -21,7 +45,7 @@ export async function _fetch<ResponseType = any>(
         variables,
       }),
     });
-    const json = (await res.json()) as any;
+    const json = await res.json();
     const data = json?.data;
     let error = null;
 
