@@ -5,7 +5,7 @@
       "src": "index.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["manual_modules/**"]
+        "includeFiles": ["manual_module/**"]
       }
     }
   ],
