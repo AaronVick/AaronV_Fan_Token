@@ -1,12 +1,14 @@
 {
   "name": "moxie-auction",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "index.ts",  // Update to reflect the TypeScript entry point
   "type": "commonjs",
   "scripts": {
-    "start": "node index.js"
+    "start": "ts-node index.ts"  // Use ts-node to run TypeScript directly
   },
   "dependencies": {
-    "node-fetch": "^3.3.0"
+    "node-fetch": "^3.3.0",
+    "ts-node": "^10.0.0",  // Add ts-node for TypeScript execution
+    "typescript": "^4.0.0"  // Ensure TypeScript is listed as a dependency
   }
 }
