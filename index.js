@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
@@ -93,7 +93,7 @@ Status:          ${auctionData.status}
   return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   console.log('Received request:', JSON.stringify(req.body));
 
   let imageUrl = DEFAULT_IMAGE_URL;
@@ -157,4 +157,4 @@ module.exports = async (req, res) => {
 </html>
     `);
   }
-};
+}
