@@ -6,11 +6,15 @@
     "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*", "manual_modules/*"]
+    }
   },
   "include": [
-    "src/**/*.ts",
-    "index.ts"
+    "*.ts",
+    "manual_modules/**/*.ts"
   ],
   "exclude": [
     "node_modules"
