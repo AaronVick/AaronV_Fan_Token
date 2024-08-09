@@ -90,6 +90,8 @@ Status:          ${auctionData.status}
 module.exports = async (req, res) => {
   console.log('Received request:', JSON.stringify(req.body));
 
+  let imageUrl = DEFAULT_IMAGE_URL;  // Set a default image URL
+
   try {
     const { untrustedData } = req.body || {};
     const farcasterName = untrustedData?.inputText || '';
@@ -102,7 +104,7 @@ module.exports = async (req, res) => {
     const auctionData = await getFanTokenDataByFid(fid);
     console.log('Auction data:', auctionData);
 
-    const imageUrl = auctionData.error ? DEFAULT_IMAGE_URL : generateImageUrl(auctionData, farcasterName);
+    imageUrl = auctionData.error ? ERROR_IMAGE_URL : generateImageUrl(auctionData, farcasterName);
 
     const html = `
 <!DOCTYPE html>
@@ -137,7 +139,7 @@ module.exports = async (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Error</title>
     <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}">
+    <meta property="fc:frame:image" content="${imageUrl}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
     <meta property="fc:frame:button:1" content="Try Again">
     <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
