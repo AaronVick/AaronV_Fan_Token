@@ -1,10 +1,10 @@
 import https from 'https';
 import { init, fetchQuery } from './manual_module/airstack-node-sdk-main/src';
-import { ConfigType } from './manual_module/airstack-node-sdk-main/src/config';
 import { Variables, FetchQuery } from './manual_module/airstack-node-sdk-main/src/types';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
+
 
 // Initialize Airstack SDK
 init(process.env.AIRSTACK_API_KEY || '');
