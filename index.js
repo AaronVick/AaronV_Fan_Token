@@ -1,88 +1,95 @@
-// Directly access environment variables without dotenv
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
-const { init, fetchQuery } = require('@airstack/node');
+// Assuming that you have placed the files in 'manual_modules/airstack-node-sdk-main/src'
 
-// Initialize the Airstack SDK with the API key
-init(process.env.AIRSTACK_API_KEY);
+// You can require the necessary files from the manually added module
+const airstack = require('./manual_modules/airstack-node-sdk-main/src/index.js'); 
+
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
-async function fetchFid(farcasterName) {
-    try {
-        console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
-        const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
-        const fidJson = await response.json();
-        console.log('FID JSON Response:', fidJson);
+// No longer need dotenv since you are using Node 20.x
+// No need to require('dotenv').config();
 
-        if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
-            return fidJson.result.user.fid.toString();
-        } else {
-            throw new Error('FID not found in the response');
-        }
-    } catch (error) {
-        console.error('Error fetching FID:', error.message);
-        throw error;
+async function fetchFid(farcasterName) {
+  try {
+    console.log(`Fetching FID for Farcaster name: ${farcasterName}`);
+    const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
+    const fidJson = await response.json();
+    console.log('FID JSON Response:', fidJson);
+
+    if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
+      return fidJson.result.user.fid.toString();
+    } else {
+      throw new Error('FID not found in the response');
     }
+  } catch (error) {
+    console.error('Error fetching FID:', error.message);
+    throw error;
+  }
 }
 
 async function getFanTokenDataByFid(fid) {
-    try {
-        const query = `
-            query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
-                FarcasterFanTokenAuctions(
-                    input: {filter: {entityId: {_eq: $fid}, entityType: {_in: $entityTypes}}, blockchain: $blockchain, limit: $limit}
-                ) {
-                    FarcasterFanTokenAuction {
-                        auctionId
-                        auctionSupply
-                        decimals
-                        entityId
-                        entityName
-                        entitySymbol
-                        estimatedEndTimestamp
-                        estimatedStartTimestamp
-                        minBiddingAmount
-                        minPriceInMoxie
-                        subjectAddress
-                        status
-                    }
-                }
-            }
-        `;
-
-        const variables = {
-            fid: fid,
-            entityTypes: ['MOXIE'],
-            blockchain: 'ethereum',
-            limit: 1,
-        };
-
-        // Use the fetchQuery method from the Airstack SDK
-        const { data, error } = await fetchQuery(query, variables);
-
-        if (error) {
-            console.error('Airstack API Error:', error.message);
-            return { error: "Failed to fetch auction data" };
+  try {
+    const query = `
+      query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
+        FarcasterFanTokenAuctions(
+          input: {filter: {entityId: {_eq: $fid}, entityType: {_in: $entityTypes}}, blockchain: $blockchain, limit: $limit}
+        ) {
+          FarcasterFanTokenAuction {
+            auctionId
+            auctionSupply
+            decimals
+            entityId
+            entityName
+            entitySymbol
+            estimatedEndTimestamp
+            estimatedStartTimestamp
+            minBiddingAmount
+            minPriceInMoxie
+            subjectAddress
+            status
+          }
         }
+      }
+    `;
 
-        const auctionData = data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
-        if (!auctionData) {
-            return { error: "No Auction Data Available" };
-        }
-        return auctionData;
-    } catch (error) {
-        console.error('Error fetching fan token data:', error.message);
-        return { error: "Failed to fetch auction data" };
+    const variables = {
+      fid: fid,
+      entityTypes: ['MOXIE'],
+      blockchain: 'ethereum',
+      limit: 1,
+    };
+
+    const response = await fetch('https://api.airstack.xyz/gql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': process.env.AIRSTACK_API_KEY,  // Ensure this key is set in Vercel's environment variables
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    const jsonResponse = await response.json();
+    console.log('Airstack API Response:', JSON.stringify(jsonResponse, null, 2));
+
+    const auctionData = jsonResponse.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+    if (!auctionData) {
+      return { error: "No Auction Data Available" };
     }
+    return auctionData;
+  } catch (error) {
+    console.error('Error fetching fan token data:', error.message);
+    return { error: "Failed to fetch auction data" };
+  }
 }
 
 function generateImageUrl(auctionData, farcasterName) {
-    if (auctionData.error) {
-        return ERROR_IMAGE_URL;
-    }
+  if (auctionData.error) {
+    return ERROR_IMAGE_URL;
+  }
 
-    const text = `
+  const text = `
 Auction for ${farcasterName}
 
 Clearing Price:  ${auctionData.minPriceInMoxie.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
@@ -91,29 +98,29 @@ Auction End:     ${new Date(auctionData.estimatedEndTimestamp * 1000).toLocaleSt
 Status:          ${auctionData.status}
   `.trim();
 
-    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
+  return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
 }
 
 module.exports = async (req, res) => {
-    console.log('Received request:', JSON.stringify(req.body));
+  console.log('Received request:', JSON.stringify(req.body));
 
-    let imageUrl = DEFAULT_IMAGE_URL;
+  let imageUrl = DEFAULT_IMAGE_URL;
 
-    try {
-        const { untrustedData } = req.body || {};
-        const farcasterName = untrustedData?.inputText || '';
+  try {
+    const { untrustedData } = req.body || {};
+    const farcasterName = untrustedData?.inputText || '';
 
-        let fid = '354795'; // Default FID
-        if (farcasterName.trim() !== '') {
-            fid = await fetchFid(farcasterName);
-        }
+    let fid = '354795'; // Default FID
+    if (farcasterName.trim() !== '') {
+      fid = await fetchFid(farcasterName);
+    }
 
-        const auctionData = await getFanTokenDataByFid(fid);
-        console.log('Auction data:', auctionData);
+    const auctionData = await getFanTokenDataByFid(fid);
+    console.log('Auction data:', auctionData);
 
-        imageUrl = auctionData.error ? ERROR_IMAGE_URL : generateImageUrl(auctionData, farcasterName);
+    imageUrl = auctionData.error ? ERROR_IMAGE_URL : generateImageUrl(auctionData, farcasterName);
 
-        const html = `
+    const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -132,13 +139,13 @@ module.exports = async (req, res) => {
     ${auctionData.error ? '<p>Error: ' + auctionData.error + '</p>' : ''}
 </body>
 </html>
-        `;
+    `;
 
-        res.setHeader('Content-Type', 'text/html');
-        res.status(200).send(html);
-    } catch (error) {
-        console.error('Error in index.js:', error.message);
-        res.status(500).send(`
+    res.setHeader('Content-Type', 'text/html');
+    res.status(200).send(html);
+  } catch (error) {
+    console.error('Error in index.js:', error.message);
+    res.status(500).send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -156,6 +163,6 @@ module.exports = async (req, res) => {
     <p>Failed to fetch auction data. Please try again.</p>
 </body>
 </html>
-        `);
-    }
+    `);
+  }
 };
