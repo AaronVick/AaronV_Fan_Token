@@ -6,6 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@airstack/node": "^1.0.0"  // This will pull the latest compatible 1.x.x version
+    "@airstack/node": "^1.0.0",
+    "node-fetch": "^2.6.1"
   }
 }
