@@ -1,11 +1,12 @@
-const { init, fetchQuery } = require('@airstack/node');
-const fetch = require('node-fetch');
+require('dotenv').config();
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const { init, fetchQuery } = require('@airstack/node'); // Require and initialize the Airstack SDK
+
+// Initialize the Airstack SDK with the API key
+init(process.env.AIRSTACK_API_KEY);
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
-
-// Initialize Airstack
-init(process.env.AIRSTACK_API_KEY);
 
 async function fetchFid(farcasterName) {
   try {
@@ -57,10 +58,15 @@ async function getFanTokenDataByFid(fid) {
       limit: 1,
     };
 
-    const response = await fetchQuery(query, variables);
-    console.log('Airstack API Response:', JSON.stringify(response, null, 2));
+    // Use the fetchQuery method from the Airstack SDK
+    const { data, error } = await fetchQuery(query, variables);
 
-    const auctionData = response.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+    if (error) {
+      console.error('Airstack API Error:', error.message);
+      return { error: "Failed to fetch auction data" };
+    }
+
+    const auctionData = data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
     if (!auctionData) {
       return { error: "No Auction Data Available" };
     }
