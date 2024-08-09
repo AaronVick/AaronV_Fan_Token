@@ -1,6 +1,6 @@
 const { config } = require('../config');
 const { AIRSTACK_ENDPOINT } = require('../constants');
-const fetch = require('node-fetch');
+const fetch = require('node-fetch').default;
 
 export async function _fetch<ResponseType = any>(
   query: string,
