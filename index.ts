@@ -9,15 +9,82 @@ const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=
 init(process.env.AIRSTACK_API_KEY || '');
 
 async function fetchFid(farcasterName: string): Promise<string> {
-    // ... (your existing fetchFid function)
+    try {
+        const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
+        const fidJson = await response.json();
+
+        if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
+            return fidJson.result.user.fid.toString();
+        } else {
+            throw new Error('FID not found in the response');
+        }
+    } catch (error) {
+        console.error('Error fetching FID:', error);
+        throw error;
+    }
 }
 
 async function getFanTokenDataByFid(fid: string) {
-    // ... (your existing getFanTokenDataByFid function)
+    try {
+        const query = `
+            query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
+                FarcasterFanTokenAuctions(
+                    input: {filter: {entityId: {_eq: $fid}, entityType: {_in: $entityTypes}}, blockchain: $blockchain, limit: $limit}
+                ) {
+                    FarcasterFanTokenAuction {
+                        auctionId
+                        auctionSupply
+                        decimals
+                        entityId
+                        entityName
+                        entitySymbol
+                        estimatedEndTimestamp
+                        estimatedStartTimestamp
+                        minBiddingAmount
+                        minPriceInMoxie
+                        subjectAddress
+                        status
+                    }
+                }
+            }
+        `;
+
+        const variables = {
+            fid: fid,
+            entityTypes: ['MOXIE'],
+            blockchain: 'ethereum',
+            limit: 1,
+        };
+
+        const response = await fetchQuery(query, variables);
+        console.log('Airstack API Response:', JSON.stringify(response, null, 2));
+
+        const auctionData = response.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+        if (!auctionData) {
+            return { error: "No Auction Data Available" };
+        }
+        return auctionData;
+    } catch (error) {
+        console.error('Error fetching fan token data:', error);
+        return { error: "Failed to fetch auction data" };
+    }
 }
 
 function generateImageUrl(auctionData: any, farcasterName: string): string {
-    // ... (your existing generateImageUrl function)
+    if (auctionData.error) {
+        return ERROR_IMAGE_URL;
+    }
+
+    const text = `
+Auction for ${farcasterName}
+
+Clearing Price:  ${auctionData.minPriceInMoxie.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
+Auction Start:   ${new Date(parseInt(auctionData.estimatedStartTimestamp) * 1000).toLocaleString()}
+Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString()}
+Status:          ${auctionData.status}
+    `.trim();
+
+    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
 }
 
 async function handleRequest(req: any, res: any) {
@@ -63,7 +130,7 @@ async function handleRequest(req: any, res: any) {
         res.setHeader('Content-Type', 'text/html');
         res.status(200).send(html);
     } catch (error) {
-        console.error('Error in index.ts:', error);
+        console.error('Error in handleRequest:', error);
         res.status(500).send(`
 <!DOCTYPE html>
 <html lang="en">
@@ -86,5 +153,5 @@ async function handleRequest(req: any, res: any) {
     }
 }
 
-// Export the handleRequest function for Vercel
+// Export the handler for Vercel
 module.exports = handleRequest;
