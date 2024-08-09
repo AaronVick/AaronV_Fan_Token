@@ -1,7 +1,7 @@
 // index.ts
 
-import { init, fetchQuery } from './manual_module/airstack-node-sdk-main/src/index.ts';
-import fetch from 'node-fetch';
+const { init, fetchQuery } = require('./manual_module/airstack-node-sdk-main/src');
+const fetch = require('node-fetch');
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
