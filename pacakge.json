@@ -2,13 +2,8 @@
   "name": "moxie-auction",
   "version": "1.0.0",
   "main": "index.js",
-  "engines": {
-    "node": ">=14.0.0"
-  },
-  "scripts": {
-    "start": "node index.js"
-  },
   "dependencies": {
+    "@airstack/node": "^0.0.5",
     "node-fetch": "^2.6.1"
   }
 }
