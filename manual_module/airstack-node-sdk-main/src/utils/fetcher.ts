@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { AIRSTACK_ENDPOINT } from '../constants';
 import { Variables } from '../types';
-import fetch from './fetch';
+import fetch from 'node-fetch';
 
 export async function _fetch<ResponseType = any>(
   query: string,
