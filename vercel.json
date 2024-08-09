@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "index.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["manual_modules/**"]
+      }
     }
   ],
   "routes": [
@@ -11,6 +14,5 @@
       "src": "/(.*)",
       "dest": "/index.ts"
     }
-  ],
-  "includeFiles": ["manual_modules/**"]
+  ]
 }
