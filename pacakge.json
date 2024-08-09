@@ -4,11 +4,9 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node index.js",
-    "postinstall": "npm install @airstack/node"
+    "start": "node index.js"
   },
   "dependencies": {
-    "dotenv": "^16.0.3",
     "node-fetch": "^3.3.0"
   }
 }
