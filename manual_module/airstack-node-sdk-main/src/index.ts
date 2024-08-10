@@ -1,5 +1,5 @@
-import { init, fetchQuery } from "@airstack/node";
-const fetch = require('node-fetch');
+import { init, fetchQuery } from "./manual_module/airstack-node-sdk-main/src";
+import fetch from 'node-fetch';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=No%20Auction%20Data%20Available';
@@ -87,6 +87,11 @@ Status:          ${auctionData.status}
 }
 
 export default async function handler(req: any, res: any) {
+    if (req.method === 'GET') {
+        res.status(200).send('Server is running');
+        return;
+    }
+
     console.log('Received request:', JSON.stringify(req.body));
 
     let imageUrl = DEFAULT_IMAGE_URL;
@@ -151,4 +156,3 @@ export default async function handler(req: any, res: any) {
         `);
     }
 }
-module.exports = handler;
