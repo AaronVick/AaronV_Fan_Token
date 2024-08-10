@@ -1,5 +1,5 @@
 import { init, fetchQuery } from "@airstack/node";
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=No%20Auction%20Data%20Available';
