@@ -1,4 +1,11 @@
 {
+  "name": "moxie-auction",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "dev": "ts-node index.ts"
+  },
   "dependencies": {
     "@airstack/node": "^0.0.5",
     "node-fetch": "2.6.7",
