@@ -1,5 +1,5 @@
 import { init, fetchQuery } from "@airstack/node";
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 const BASE_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
@@ -9,22 +9,83 @@ const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=
 init(process.env.AIRSTACK_API_KEY || '');
 
 async function fetchFid(farcasterName: string): Promise<string> {
-    // ... (keep existing implementation)
+    try {
+        const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${encodeURIComponent(farcasterName)}`);
+        const fidJson = await response.json();
+
+        if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
+            return fidJson.result.user.fid.toString();
+        } else {
+            throw new Error('FID not found in the response');
+        }
+    } catch (error) {
+        console.error('Error fetching FID:', error);
+        throw error;
+    }
 }
 
 async function getFanTokenDataByFid(fid: string) {
-    // ... (keep existing implementation)
+    try {
+        const query = `
+            query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
+                FarcasterFanTokenAuctions(
+                    input: {filter: {entityId: {_eq: $fid}, entityType: {_in: $entityTypes}}, blockchain: $blockchain, limit: $limit}
+                ) {
+                    FarcasterFanTokenAuction {
+                        auctionId
+                        auctionSupply
+                        decimals
+                        entityId
+                        entityName
+                        entitySymbol
+                        estimatedEndTimestamp
+                        estimatedStartTimestamp
+                        minBiddingAmount
+                        minPriceInMoxie
+                        subjectAddress
+                        status
+                    }
+                }
+            }
+        `;
+
+        const variables = {
+            fid,
+            entityTypes: ['MOXIE'],
+            blockchain: 'ethereum',
+            limit: 1,
+        };
+
+        const response = await fetchQuery(query, variables);
+        const auctionData = response.data?.FarcasterFanTokenAuctions?.FarcasterFanTokenAuction?.[0];
+        return auctionData || { error: "No Auction Data Available" };
+    } catch (error) {
+        console.error('Error fetching fan token data:', error);
+        return { error: "Failed to fetch auction data" };
+    }
 }
 
 function generateImageUrl(auctionData: any, farcasterName: string): string {
-    // ... (keep existing implementation)
+    if (auctionData.error) {
+        return ERROR_IMAGE_URL;
+    }
+
+    const text = `
+Auction for ${farcasterName}
+
+Clearing Price:  ${auctionData.minPriceInMoxie?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
+Auction Start:   ${new Date(parseInt(auctionData.estimatedStartTimestamp) * 1000).toLocaleString()}
+Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString()}
+Status:          ${auctionData.status}
+    `.trim();
+
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
 }
 
 export default async function handler(req: any, res: any) {
     console.log(`Received ${req.method} request:`, JSON.stringify(req.body, null, 2));
 
     if (req.method === 'GET') {
-        // Handle initial GET request
         const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -48,19 +109,16 @@ export default async function handler(req: any, res: any) {
         return res.status(200).send(html);
     }
 
-    // Handle POST request (button click)
     try {
         const { untrustedData } = req.body || {};
         const farcasterName = untrustedData?.inputText || '';
 
-        let fid = '354795'; // Default FID
-        if (farcasterName.trim() !== '') {
+        let fid = '354795';
+        if (farcasterName.trim()) {
             fid = await fetchFid(farcasterName);
         }
 
         const auctionData = await getFanTokenDataByFid(fid);
-        console.log('Auction data:', auctionData);
-
         const imageUrl = auctionData.error ? ERROR_IMAGE_URL : generateImageUrl(auctionData, farcasterName);
 
         const html = `
