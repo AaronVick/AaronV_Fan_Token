@@ -1,23 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2018",
-    "module": "CommonJS",
-    "lib": ["ES2018", "ESNext.AsyncIterable", "DOM"],
+    "module": "commonjs",  // Keep CommonJS as originally configured
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./src",  // Assuming 'src' is the correct root directory
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "node",
-    "baseUrl": "./src",
-    "paths": {
-      "*": ["node_modules/*", "src/types/*"]
-    },
-    "typeRoots": ["./node_modules/@types", "./src/types"],
-    "types": ["node"]
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts", "manual_module/**/*.ts"],  // Include paths updated for 'src'
   "exclude": ["node_modules"]
 }
