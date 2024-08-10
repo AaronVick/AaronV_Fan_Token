@@ -2,7 +2,7 @@ import { init, fetchQuery } from "@airstack/node";
 import fetch from 'node-fetch';
 
 const BASE_URL = 'https://aaron-v-fan-token.vercel.app';
-const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
+const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/moxiecover.png';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
 
 // Initialize Airstack SDK
@@ -86,7 +86,7 @@ export default async function handler(req: any, res: any) {
     console.log(`Received ${req.method} request:`, JSON.stringify(req.body, null, 2));
 
     if (req.method === 'GET') {
-        return res.status(200).send(generateFrameHtml(DEFAULT_IMAGE_URL));
+        return res.status(200).send(generateInitialFrameHtml());
     }
 
     try {
@@ -103,30 +103,48 @@ export default async function handler(req: any, res: any) {
         const imageUrl = auctionData.error ? ERROR_IMAGE_URL : generateImageUrl(auctionData, farcasterName);
         console.log(`Generated image URL: ${imageUrl}`);
 
-        return res.status(200).send(generateFrameHtml(imageUrl));
+        return res.status(200).send(generateDynamicFrameHtml(imageUrl, farcasterName));
     } catch (error) {
         console.error('Error in handler:', error);
         return res.status(500).send(generateErrorFrameHtml(error.message));
     }
 }
 
-function generateFrameHtml(imageUrl: string): string {
+function generateInitialFrameHtml(): string {
     return `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moxie Auction Details</title>
-    <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${imageUrl}">
-    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-    <meta property="fc:frame:button:1" content="View">
-    <meta property="fc:frame:post_url" content="${BASE_URL}/api/frame">
+    <meta property="fc:frame" content="vNext" />
+    <meta property="fc:frame:image" content="${DEFAULT_IMAGE_URL}" />
+    <meta property="fc:frame:input:text" content="Enter Farcaster name" />
+    <meta property="fc:frame:button:1" content="View Auction Details" />
+    <meta property="fc:frame:post_url" content="${BASE_URL}/api/frame" />
 </head>
 <body>
-    <h1>Moxie Auction Details</h1>
-    <img src="${imageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
+    <h1>How To Earn Moxie</h1>
+    <img src="${DEFAULT_IMAGE_URL}" alt="Moxie Cover Image" />
+</body>
+</html>
+    `;
+}
+
+function generateDynamicFrameHtml(imageUrl: string, farcasterName: string): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Moxie Auction Details for ${farcasterName}</title>
+    <meta property="fc:frame" content="vNext" />
+    <meta property="fc:frame:image" content="${imageUrl}" />
+    <meta property="fc:frame:input:text" content="Enter Farcaster name" />
+    <meta property="fc:frame:button:1" content="View Auction Details" />
+    <meta property="fc:frame:post_url" content="${BASE_URL}/api/frame" />
+</head>
+<body>
+    <h1>Auction Details for ${farcasterName}</h1>
+    <img src="${imageUrl}" alt="Auction Details" />
 </body>
 </html>
     `;
@@ -135,16 +153,14 @@ function generateFrameHtml(imageUrl: string): string {
 function generateErrorFrameHtml(errorMessage: string): string {
     return `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Error</title>
-    <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${ERROR_IMAGE_URL}">
-    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-    <meta property="fc:frame:button:1" content="Try Again">
-    <meta property="fc:frame:post_url" content="${BASE_URL}/api/frame">
+    <meta property="fc:frame" content="vNext" />
+    <meta property="fc:frame:image" content="${ERROR_IMAGE_URL}" />
+    <meta property="fc:frame:input:text" content="Enter Farcaster name" />
+    <meta property="fc:frame:button:1" content="Try Again" />
+    <meta property="fc:frame:post_url" content="${BASE_URL}/api/frame" />
 </head>
 <body>
     <h1>Error</h1>
