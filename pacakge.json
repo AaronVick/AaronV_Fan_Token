@@ -1,15 +1,14 @@
 {
   "name": "moxie-auction",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "scripts": {
     "build": "tsc",
-    "start": "ts-node index.ts",
-    "dev": "ts-node index.ts"
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
   },
   "dependencies": {
-    "node-fetch": "^3.3.2",
-    "@airstack/node": "^0.0.5"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^14.14.31",
