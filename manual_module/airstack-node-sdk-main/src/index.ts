@@ -1,5 +1,9 @@
+import express from 'express';
 import { init, fetchQuery } from "./manual_module/airstack-node-sdk-main/src";
 import fetch from 'node-fetch';
+
+const app = express();
+const port = process.env.PORT || 3000;
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=No%20Auction%20Data%20Available';
@@ -7,91 +11,26 @@ const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=
 // Initialize Airstack SDK
 init(process.env.AIRSTACK_API_KEY || '');
 
-async function fetchFid(farcasterName: string): Promise<string> {
-    try {
-        const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
-        const fidJson = await response.json();
+// Middleware to parse JSON bodies
+app.use(express.json());
 
-        if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
-            return fidJson.result.user.fid.toString();
-        } else {
-            throw new Error('FID not found in the response');
-        }
-    } catch (error) {
-        console.error('Error fetching FID:', error);
-        throw error;
-    }
+async function fetchFid(farcasterName: string): Promise<string> {
+    // ... (keep the existing implementation)
 }
 
 async function getFanTokenDataByFid(fid: string) {
-    try {
-        const query = `
-            query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
-                FarcasterFanTokenAuctions(
-                    input: {filter: {entityId: {_eq: $fid}, entityType: {_in: $entityTypes}}, blockchain: $blockchain, limit: $limit}
-                ) {
-                    FarcasterFanTokenAuction {
-                        auctionId
-                        auctionSupply
-                        decimals
-                        entityId
-                        entityName
-                        entitySymbol
-                        estimatedEndTimestamp
-                        estimatedStartTimestamp
-                        minBiddingAmount
-                        minPriceInMoxie
-                        subjectAddress
-                        status
-                    }
-                }
-            }
-        `;
-
-        const variables = {
-            fid: fid,
-            entityTypes: ['MOXIE'],
-            blockchain: 'ethereum',
-            limit: 1,
-        };
-
-        const response = await fetchQuery(query, variables);
-        console.log('Airstack API Response:', JSON.stringify(response, null, 2));
-
-        const auctionData = response.data?.FarcasterFanTokenAuctions?.FarcasterFanTokenAuction?.[0];
-        if (!auctionData) {
-            return { error: "No Auction Data Available" };
-        }
-        return auctionData;
-    } catch (error) {
-        console.error('Error fetching fan token data:', error);
-        return { error: "Failed to fetch auction data" };
-    }
+    // ... (keep the existing implementation)
 }
 
 function generateImageUrl(auctionData: any, farcasterName: string): string {
-    if (auctionData.error) {
-        return ERROR_IMAGE_URL;
-    }
-
-    const text = `
-Auction for ${farcasterName}
-
-Clearing Price:  ${auctionData.minPriceInMoxie?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
-Auction Start:   ${new Date(parseInt(auctionData.estimatedStartTimestamp) * 1000).toLocaleString()}
-Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString()}
-Status:          ${auctionData.status}
-    `.trim();
-
-    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
+    // ... (keep the existing implementation)
 }
 
-export default async function handler(req: any, res: any) {
-    if (req.method === 'GET') {
-        res.status(200).send('Server is running');
-        return;
-    }
+app.get('/', (req, res) => {
+    res.send('Server is running');
+});
 
+app.post('/', async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
 
     let imageUrl = DEFAULT_IMAGE_URL;
@@ -155,4 +94,11 @@ export default async function handler(req: any, res: any) {
 </html>
         `);
     }
-}
+});
+
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
+
+// Export the Express API
+export default app;
