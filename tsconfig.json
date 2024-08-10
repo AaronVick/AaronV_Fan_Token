@@ -2,13 +2,19 @@
   "compilerOptions": {
     "target": "ES2018",
     "module": "commonjs",
+    "lib": ["es2018", "esnext.asynciterable"],
     "outDir": "./dist",
     "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*", "manual_module/*"]
+    }
   },
   "include": ["*.ts", "manual_module/**/*"],
   "exclude": ["node_modules"]
