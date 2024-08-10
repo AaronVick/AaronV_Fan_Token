@@ -8,16 +8,16 @@ import {
   FieldNode,
 } from 'graphql';
 
-import { getArguments } from '../query/getArguments';
+import { getArguments } from './query/getArguments';
 import {
   SchemaMap,
   getIntrospectionQueryMap,
-} from '../query/getIntrospectionQuery';
-import { moveArgumentsToParams } from '../query/moveArgumentsToParams';
-import { getQueries } from '../query/getQueries';
-import { QueryContext } from '../types';
+} from './query/getIntrospectionQuery';
+import { moveArgumentsToParams } from './query/moveArgumentsToParams';
+import { getQueries } from './query/getQueries';
+import { QueryContext } from './types';
 import { addPageInfoFields } from './addPageInfoFields';
-import { config } from '../config';
+import { config } from './config';
 
 export function addCursorVariable(
   query: string,
