@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
     "target": "ES2018",
-    "module": "commonjs",  // Keep CommonJS as originally configured
+    "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": "./src",  // Assuming 'src' is the correct root directory
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "manual_module/**/*.ts"],  // Include paths updated for 'src'
+  "include": ["*.ts"],
   "exclude": ["node_modules"]
 }
