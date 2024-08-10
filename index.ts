@@ -1,33 +1,16 @@
-import https from 'https';
-import { init, fetchQuery } from './manual_module/airstack-node-sdk-main/src';
-import { Variables, FetchQuery } from './manual_module/airstack-node-sdk-main/src/types';
+import { init, fetchQuery } from "./manual_module/airstack-node-sdk-main/src";
+import fetch from 'node-fetch';
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
-const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/1e3a8a/ffffff?text=No%20Auction%20Data%20Available';
-
+const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=No%20Auction%20Data%20Available';
 
 // Initialize Airstack SDK
 init(process.env.AIRSTACK_API_KEY || '');
 
-function fetch(url: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
-            let data = '';
-            res.on('data', (chunk) => {
-                data += chunk;
-            });
-            res.on('end', () => {
-                resolve(JSON.parse(data));
-            });
-        }).on('error', (err) => {
-            reject(err);
-        });
-    });
-}
-
 async function fetchFid(farcasterName: string): Promise<string> {
     try {
-        const fidJson = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
+        const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
+        const fidJson = await response.json();
 
         if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
             return fidJson.result.user.fid.toString();
@@ -65,14 +48,14 @@ async function getFanTokenDataByFid(fid: string) {
             }
         `;
 
-        const variables: Variables = {
+        const variables = {
             fid: fid,
             entityTypes: ['MOXIE'],
             blockchain: 'ethereum',
             limit: 1,
         };
 
-        const response: FetchQuery = await fetchQuery(query, variables);
+        const response = await fetchQuery(query, variables);
         console.log('Airstack API Response:', JSON.stringify(response, null, 2));
 
         const auctionData = response.data?.FarcasterFanTokenAuctions?.FarcasterFanTokenAuction?.[0];
@@ -100,7 +83,7 @@ Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).
 Status:          ${auctionData.status}
     `.trim();
 
-    return `https://via.placeholder.com/1000x600/1e3a8a/ffffff?text=${encodeURIComponent(text)}&font=monospace&size=35`;
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
 }
 
 export default async function handler(req: any, res: any) {
