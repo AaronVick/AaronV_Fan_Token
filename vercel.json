@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "src/index.ts",  // Ensure that the path to your handler file is correct
+      "src": "index.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/src/index.ts"  // Ensure this matches the correct path
+      "dest": "/index.ts"
     }
   ]
 }
