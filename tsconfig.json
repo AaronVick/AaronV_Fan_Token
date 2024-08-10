@@ -13,10 +13,10 @@
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
-      "*": ["node_modules/*", "manual_module/*"]
+      "*": ["node_modules/*"]
     },
     "types": ["node"]
   },
-  "include": ["*.ts", "manual_module/**/*"],
+  "include": ["*.ts"],
   "exclude": ["node_modules"]
 }
