@@ -1,7 +1,23 @@
 // manual_module/airstack-node-sdk-main/src/utils/addCursorVariable.ts
 
-import { parse, print, visit, OperationDefinitionNode, SelectionSetNode, FieldNode } from 'graphql';
+import {
+  IntrospectionInputObjectType,
+  print,
+  parse,
+  ObjectFieldNode,
+  FieldNode,
+} from 'graphql';
+
+import { getArguments } from '../query';
+import {
+  SchemaMap,
+  getIntrospectionQueryMap,
+} from '../query/getIntrospectionQuery';
+import { moveArgumentsToParams } from '../query/moveArgumentsToParams';
+import { getQueries } from '../query/getQueries';
 import { QueryContext } from '../types';
+import { addPageInfoFields } from './addPageInfoFields';
+import { config } from '../config';
 
 export function addCursorVariable(
   query: string,
