@@ -1,22 +1,18 @@
+import { init, fetchQuery } from "./manual_module/airstack-node-sdk-main/src";
 import fetch from 'node-fetch';
-import { init, fetchQuery } from "@airstack/node";
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=No%20Auction%20Data%20Available';
 
 // Initialize Airstack SDK
-const apiKey = process.env.AIRSTACK_API_KEY || '';
-if (!apiKey) {
-    throw new Error('AIRSTACK_API_KEY is not defined');
-}
-init(apiKey);
+init(process.env.AIRSTACK_API_KEY || '');
 
 async function fetchFid(farcasterName: string): Promise<string> {
     try {
         const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
         const fidJson = await response.json();
 
-        if (fidJson.result?.user?.fid) {
+        if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
             return fidJson.result.user.fid.toString();
         } else {
             throw new Error('FID not found in the response');
@@ -27,7 +23,7 @@ async function fetchFid(farcasterName: string): Promise<string> {
     }
 }
 
-async function getFanTokenDataByFid(fid: string): Promise<any> {
+async function getFanTokenDataByFid(fid: string) {
     try {
         const query = `
             query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
@@ -53,7 +49,7 @@ async function getFanTokenDataByFid(fid: string): Promise<any> {
         `;
 
         const variables = {
-            fid,
+            fid: fid,
             entityTypes: ['MOXIE'],
             blockchain: 'ethereum',
             limit: 1,
@@ -91,6 +87,11 @@ Status:          ${auctionData.status}
 }
 
 export default async function handler(req: any, res: any) {
+    if (req.method === 'GET') {
+        res.status(200).send('Server is running');
+        return;
+    }
+
     console.log('Received request:', JSON.stringify(req.body));
 
     let imageUrl = DEFAULT_IMAGE_URL;
@@ -100,7 +101,7 @@ export default async function handler(req: any, res: any) {
         const farcasterName = untrustedData?.inputText || '';
 
         let fid = '354795'; // Default FID
-        if (farcasterName.trim()) {
+        if (farcasterName.trim() !== '') {
             fid = await fetchFid(farcasterName);
         }
 
