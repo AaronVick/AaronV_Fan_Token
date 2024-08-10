@@ -1,22 +1,23 @@
 {
   "compilerOptions": {
     "target": "ES2018",
-    "module": "commonjs",
-    "lib": ["es2018", "esnext.asynciterable", "dom"],
+    "module": "CommonJS",
+    "lib": ["ES2018", "ESNext.AsyncIterable", "DOM"],
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "paths": {
-      "*": ["node_modules/*"]
+      "*": ["node_modules/*", "src/types/*"]
     },
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "types": ["node"]
   },
-  "include": ["*.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules"]
 }
