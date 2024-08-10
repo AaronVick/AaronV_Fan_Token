@@ -1,7 +1,7 @@
 import { DocumentNode, OperationDefinitionNode } from "graphql";
 import { createArgumentValue } from "./arguments";
 import { createVariable } from "./createVariable";
-import { Argument } from "./types";
+import { Argument } from "../types";
 
 export function moveArgumentsToParams(
   query: DocumentNode,
