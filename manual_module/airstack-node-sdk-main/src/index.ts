@@ -83,6 +83,7 @@ async function getFanTokenDataByFid(fid: string): Promise<any> {
 
 function generateImageUrl(auctionData: any, farcasterName: string): string {
     console.log('Generating image URL for auction data');
+
     if (auctionData.error) {
         console.warn('Using error image URL due to error in auction data');
         return ERROR_IMAGE_URL;
@@ -97,9 +98,14 @@ Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).
 Status:          ${auctionData.status}
     `.trim();
 
-    const imageUrl = `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
-    console.log('Generated image URL:', imageUrl);
-    return imageUrl;
+    try {
+        const imageUrl = `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
+        console.log('Generated image URL:', imageUrl);
+        return imageUrl;
+    } catch (error) {
+        console.error('Error generating image URL:', error);
+        throw new Error('Invalid URL generated');
+    }
 }
 
 export default async function handler(req: any, res: any) {
