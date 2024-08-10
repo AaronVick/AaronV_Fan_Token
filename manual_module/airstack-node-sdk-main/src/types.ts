@@ -21,3 +21,13 @@ export type FetchQuery = {
 };
 
 export type Variables = Record<string, any>;
+
+// Add this new type
+export type Argument = {
+  type?: string;
+  isRequired?: boolean;
+  name: string;
+  uniqueName?: string;
+  valueKind: string;
+  ref?: any;
+};
