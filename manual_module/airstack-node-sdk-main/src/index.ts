@@ -1,3 +1,4 @@
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import { init, fetchQuery } from "@airstack/node";
 import fetch from 'node-fetch';
 
@@ -86,7 +87,7 @@ Status:          ${auctionData.status}
     return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Received request:', JSON.stringify(req.body));
 
     let imageUrl = DEFAULT_IMAGE_URL;
