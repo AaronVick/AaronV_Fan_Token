@@ -11,5 +11,6 @@
       "src": "/(.*)",
       "dest": "/index.ts"
     }
-  ]
+  ],
+  "includeFiles": ["manual_module/**"]
 }
