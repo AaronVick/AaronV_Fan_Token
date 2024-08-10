@@ -8,7 +8,7 @@ import {
   FieldNode,
 } from 'graphql';
 
-import { getArguments } from '../query';
+import { getArguments } from '../query/getArguments';
 import {
   SchemaMap,
   getIntrospectionQueryMap,
