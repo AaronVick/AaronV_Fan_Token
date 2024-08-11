@@ -83,10 +83,20 @@ async function getUserDataFromAirstack(username) {
 }
 
 async function getMoxieAuctionData(fid) {
-    // This is a placeholder function. Replace with actual Airstack query for Moxie auction data
     const query = `
         query GetMoxieAuctionData($fid: String!) {
-            // Add your Moxie auction data query here
+            TokenBalances(
+                input: {filter: {owner: {_eq: $fid}, tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: ethereum, limit: 1}
+            ) {
+                TokenBalance {
+                    amount
+                    formattedAmount
+                    token {
+                        name
+                        symbol
+                    }
+                }
+            }
         }
     `;
     const variables = { fid };
@@ -95,7 +105,34 @@ async function getMoxieAuctionData(fid) {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
     };
 
-    return await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+    try {
+        const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+        console.log('Moxie auction data result:', safeStringify(result));
+        
+        if (result.errors) {
+            throw new Error(result.errors[0].message);
+        }
+        
+        if (!result.data || !result.data.TokenBalances || !result.data.TokenBalances.TokenBalance) {
+            throw new Error('No Moxie auction data found');
+        }
+        
+        const tokenBalance = result.data.TokenBalances.TokenBalance[0];
+        return {
+            auctionId: fid,
+            auctionSupply: tokenBalance.amount || 'N/A',
+            clearingPrice: 'N/A', // This information might not be available from this query
+            status: tokenBalance.amount > 0 ? 'Active' : 'Inactive',
+            startTime: 'N/A', // This information is not available from this query
+            endTime: 'N/A', // This information is not available from this query
+            totalOrders: 'N/A', // This information is not available from this query
+            uniqueBidders: 'N/A', // This information is not available from this query
+            totalBidValue: tokenBalance.formattedAmount || 'N/A'
+        };
+    } catch (error) {
+        console.error('Error in getMoxieAuctionData:', error);
+        throw error;
+    }
 }
 
 function generateImageUrl(auctionData, farcasterName, errorInfo = null) {
