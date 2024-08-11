@@ -2,10 +2,10 @@
   "version": 2,
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
-    { "src": "api/auction.js", "use": "@vercel/node" }
+    { "src": "api/auctions.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/auction", "dest": "/api/auction.js" },
+    { "src": "/api/auction", "dest": "/api/auctions.js" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
