@@ -109,7 +109,7 @@ async function getMoxieAuctionData(fid) {
                 }
             }
             TokenNfts(
-                input: {filter: {address: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
+                input: {filter: {owner: {_eq: $address}, tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
             ) {
                 TokenNft {
                     address
@@ -126,23 +126,34 @@ async function getMoxieAuctionData(fid) {
     const variables = { address: `fc_fid:${fid}` };
 
     const headers = {
-        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
+        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`,
+        'Content-Type': 'application/json',
     };
 
     try {
+        console.log('Starting API call...');
+        const startTime = Date.now();
+        
         const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
-        console.log('Moxie auction data result:', safeStringify(result));
+        
+        const endTime = Date.now();
+        console.log(`API call took ${endTime - startTime} ms`);
 
         if (result.errors) {
+            console.error('Airstack query error:', result.errors);
             throw new Error(`Airstack query error: ${result.errors[0].message}`);
         }
 
         if (!result.data || (!result.data.TokenBalances?.TokenBalance && !result.data.TokenNfts?.TokenNft)) {
+            console.error('No Moxie auction data found in Airstack response');
             throw new Error('No Moxie auction data found in Airstack response');
         }
 
         const tokenBalance = result.data.TokenBalances?.TokenBalance?.[0];
         const tokenNft = result.data.TokenNfts?.TokenNft?.[0];
+
+        console.log('Token Balance:', tokenBalance);
+        console.log('Token NFT:', tokenNft);
 
         return {
             auctionId: fid,
@@ -154,7 +165,7 @@ async function getMoxieAuctionData(fid) {
             totalOrders: 'N/A',
             uniqueBidders: 'N/A',
             totalBidValue: tokenBalance?.formattedAmount || 'N/A',
-            tokenImage: tokenNft?.contentValue?.image?.original || null
+            tokenImage: tokenNft?.contentValue?.image?.original || null,
         };
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
