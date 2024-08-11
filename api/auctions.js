@@ -1,34 +1,59 @@
+const { init, fetchQuery } = require('@airstack/node');
 const https = require('https');
 
-const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 
-function httpsGet(urlString, headers = {}) {
-    return new Promise((resolve, reject) => {
-        const options = {
-            headers: headers,
-        };
-        https.get(urlString, options, (res) => {
-            let data = '';
-            res.on('data', (chunk) => data += chunk);
-            res.on('end', () => resolve(data));
-        }).on('error', reject);
-    });
-}
+// Initialize Airstack
+init(process.env.AIRSTACK_API_KEY);
 
 async function getAuctionData(fid) {
-    // Mock data - replace with actual API call
-    return {
-        auctionId: '1234',
-        auctionSupply: '100',
-        clearingPrice: '50',
-        status: 'active',
-        startTime: '1691607000',
-        endTime: '1691617000',
-        totalOrders: '20',
-        uniqueBidders: '10',
-        totalBidValue: '500',
+    const query = `
+    query GetTokenHoldings($identity: Identity!) {
+      TokenBalances(
+        input: {filter: {owner: {_eq: $identity}}, blockchain: ethereum, limit: 50}
+      ) {
+        TokenBalance {
+          amount
+          formattedAmount
+          token {
+            name
+            symbol
+          }
+        }
+      }
+    }
+    `;
+
+    const variables = {
+        identity: `fc_fid:${fid}`,
     };
+
+    try {
+        const { data, error } = await fetchQuery(query, variables);
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        // Process the data to extract relevant auction information
+        // This is a placeholder implementation and should be adjusted based on your specific needs
+        const tokenBalances = data.TokenBalances.TokenBalance;
+        const totalValue = tokenBalances.reduce((sum, balance) => sum + parseFloat(balance.formattedAmount), 0);
+
+        return {
+            auctionId: fid,
+            auctionSupply: tokenBalances.length.toString(),
+            clearingPrice: totalValue.toFixed(2),
+            status: 'active',
+            startTime: Date.now().toString(),
+            endTime: (Date.now() + 86400000).toString(), // 24 hours from now
+            totalOrders: tokenBalances.length.toString(),
+            uniqueBidders: '1', // Placeholder
+            totalBidValue: totalValue.toFixed(2),
+        };
+    } catch (error) {
+        console.error('Error fetching auction data:', error);
+        throw error;
+    }
 }
 
 function generateImageUrl(auctionData, farcasterName) {
@@ -36,8 +61,8 @@ function generateImageUrl(auctionData, farcasterName) {
 Auction for ${farcasterName}
 
 Clearing Price:  ${auctionData.clearingPrice?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
-Auction Start:   ${new Date(parseInt(auctionData.startTime) * 1000).toLocaleString()}
-Auction End:     ${new Date(parseInt(auctionData.endTime) * 1000).toLocaleString()}
+Auction Start:   ${new Date(parseInt(auctionData.startTime)).toLocaleString()}
+Auction End:     ${new Date(parseInt(auctionData.endTime)).toLocaleString()}
 Status:          ${auctionData.status}
     `.trim();
 
@@ -101,37 +126,31 @@ module.exports = async (req, res) => {
             const { untrustedData } = req.body;
             const farcasterName = untrustedData.inputText || '';
 
-            let fid = DEFAULT_FID;
-            let displayName = farcasterName || 'Default Account';
+            // Fetch FID using the Farcaster name
+            const fidResponse = await fetch(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${process.env.FARCASTER_API_KEY}`,
+                },
+            });
 
-            if (farcasterName.trim() !== '') {
-                try {
-                    const headers = {
-                        'API-KEY': process.env.FarQuestAPI,
-                        'accept': 'application/json',
-                    };
-                    const fidData = await httpsGet(`https://build.far.quest/farcaster/v2/user-by-username?username=${farcasterName}`, headers);
-                    const fidJson = JSON.parse(fidData);
-                    if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
-                        fid = fidJson.result.user.fid;
-                    } else {
-                        displayName = 'Invalid Farcaster name';
-                    }
-                } catch (error) {
-                    displayName = 'Invalid Farcaster name';
-                }
+            if (!fidResponse.ok) {
+                throw new Error('Failed to fetch FID');
             }
+
+            const fidData = await fidResponse.json();
+            const fid = fidData.result.user.fid;
 
             const auctionData = await getAuctionData(fid);
 
             const content = `
-                <h1>Auction Details for ${displayName}</h1>
+                <h1>Auction Details for ${farcasterName}</h1>
                 <div style="display: flex; justify-content: space-between;">
                     <div>
                         <p>Clearing Price: ${auctionData.clearingPrice || 'N/A'}</p>
                         <p>Auction Supply: ${auctionData.auctionSupply || 'N/A'}</p>
-                        <p>Auction Start: ${auctionData.startTime || 'N/A'}</p>
-                        <p>Auction End: ${auctionData.endTime || 'N/A'}</p>
+                        <p>Auction Start: ${new Date(parseInt(auctionData.startTime)).toLocaleString()}</p>
+                        <p>Auction End: ${new Date(parseInt(auctionData.endTime)).toLocaleString()}</p>
                     </div>
                     <div>
                         <p>Total Orders: ${auctionData.totalOrders || 'N/A'}</p>
@@ -142,7 +161,7 @@ module.exports = async (req, res) => {
                 </div>
             `;
 
-            const html = baseHtml(content, generateImageUrl(auctionData, displayName), 'Check Another Auction');
+            const html = baseHtml(content, generateImageUrl(auctionData, farcasterName), 'Check Another Auction');
 
             res.setHeader('Content-Type', 'text/html');
             return res.status(200).send(html);
