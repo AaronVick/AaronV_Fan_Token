@@ -139,17 +139,26 @@ async function getMoxieAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, farcasterName, errorInfo = null, debugInfo = '') {
+    function wrapText(text, maxLineLength) {
+        return text.replace(
+            new RegExp(`(?![^\\n]{1,${maxLineLength}}$)([^\\n]{1,${maxLineLength}})\\s`, 'g'),
+            '$1\n'
+        );
+    }
+
     let text;
+    const maxLineLength = 60; // Adjust this value as needed
+
     if (errorInfo) {
         text = `
 Error for ${farcasterName}
 
 Error Type: ${errorInfo.type}
-Error Message: ${errorInfo.message.substring(0, 500)}
-Details: ${(errorInfo.details || 'No additional details').substring(0, 500)}
+Error Message: ${wrapText(errorInfo.message.substring(0, 500), maxLineLength)}
+Details: ${wrapText((errorInfo.details || 'No additional details').substring(0, 500), maxLineLength)}
 
 Debug Info:
-${debugInfo.substring(0, 1000)}
+${wrapText(debugInfo.substring(0, 1000), maxLineLength)}
         `.trim();
     } else if (auctionData) {
         text = `
@@ -162,20 +171,20 @@ Status:         ${(auctionData.status || 'N/A').padEnd(20)}
 Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
 
 Debug Info:
-${debugInfo.substring(0, 1000)}
+${wrapText(debugInfo.substring(0, 1000), maxLineLength)}
         `.trim();
     } else {
         text = `
 No auction data available for ${farcasterName}
 
 Debug Info:
-${debugInfo.substring(0, 1000)}
+${wrapText(debugInfo.substring(0, 1000), maxLineLength)}
         `.trim();
     }
 
-    text = text.substring(0, 2000);
+    text = text.substring(0, 2000); // Limit total text length
 
-    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=14&weight=bold`;
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=12&weight=bold`;
 }
 
 module.exports = async (req, res) => {
