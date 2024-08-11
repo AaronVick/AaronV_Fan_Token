@@ -1,19 +1,17 @@
-
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import { init, fetchQuery } from "@airstack/node";
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
+const node_1 = require("@airstack/node");
 
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=No%20Auction%20Data%20Available';
 
 // Initialize Airstack SDK
-init(process.env.AIRSTACK_API_KEY || '');
+node_1.init(process.env.AIRSTACK_API_KEY || '');
 
-async function fetchFid(farcasterName: string): Promise<string> {
+async function fetchFid(farcasterName) {
     try {
         const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
         const fidJson = await response.json();
-
+        
         if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
             return fidJson.result.user.fid.toString();
         } else {
@@ -25,7 +23,7 @@ async function fetchFid(farcasterName: string): Promise<string> {
     }
 }
 
-async function getFanTokenDataByFid(fid: string) {
+async function getFanTokenDataByFid(fid) {
     try {
         const query = `
             query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
@@ -57,7 +55,7 @@ async function getFanTokenDataByFid(fid: string) {
             limit: 1,
         };
 
-        const response = await fetchQuery(query, variables);
+        const response = await node_1.fetchQuery(query, variables);
         console.log('Airstack API Response:', JSON.stringify(response, null, 2));
 
         const auctionData = response.data?.FarcasterFanTokenAuctions?.FarcasterFanTokenAuction?.[0];
@@ -71,7 +69,7 @@ async function getFanTokenDataByFid(fid: string) {
     }
 }
 
-function generateImageUrl(auctionData: any, farcasterName: string): string {
+function generateImageUrl(auctionData, farcasterName) {
     if (auctionData.error) {
         return ERROR_IMAGE_URL;
     }
@@ -88,15 +86,14 @@ Status:          ${auctionData.status}
     return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handleRequest(req, res) {
     console.log('Received request:', JSON.stringify(req.body));
 
     let imageUrl = DEFAULT_IMAGE_URL;
-    let farcasterName = '';
 
     try {
         const { untrustedData } = req.body || {};
-        farcasterName = untrustedData?.inputText || '';
+        const farcasterName = untrustedData?.inputText || '';
 
         let fid = '354795'; // Default FID
         if (farcasterName.trim() !== '') {
@@ -119,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     <meta property="fc:frame:image" content="${imageUrl}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
     <meta property="fc:frame:button:1" content="View">
-    <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL || 'https://aaron-v-fan-token.vercel.app'}">
+    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
 </head>
 <body>
     <h1>Auction Details for ${farcasterName || 'Default Account'}</h1>
@@ -132,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Content-Type', 'text/html');
         res.status(200).send(html);
     } catch (error) {
-        console.error('Error in handler:', error);
+        console.error('Error in handleRequest:', error);
         res.status(500).send(`
 <!DOCTYPE html>
 <html lang="en">
@@ -144,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     <meta property="fc:frame:image" content="${ERROR_IMAGE_URL}">
     <meta property="fc:frame:input:text" content="Enter Farcaster name">
     <meta property="fc:frame:button:1" content="Try Again">
-    <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL || 'https://aaron-v-fan-token.vercel.app'}">
+    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/">
 </head>
 <body>
     <h1>Error</h1>
@@ -154,3 +151,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `);
     }
 }
+
+module.exports = handleRequest;
