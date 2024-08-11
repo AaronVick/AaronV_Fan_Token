@@ -1,40 +1,65 @@
-module.exports = async (req, res) => {
-    console.log('Received request method:', req.method);
-    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('Request query:', JSON.stringify(req.query, null, 2));
+const url = require('url');
 
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
-    const baseHtml = (image, buttonText, inputText) => `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Moxie Auction Details</title>
-            <meta property="fc:frame" content="vNext">
-            <meta property="fc:frame:image" content="${image}">
-            <meta property="fc:frame:post_url" content="${req.headers.host}/api/auctions">
-            <meta property="fc:frame:button:1" content="${buttonText}">
-            ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
-        </head>
-        <body>
-            <h1>Moxie Auction Frame</h1>
-        </body>
-        </html>
-    `;
-
-    const defaultImage = 'https://www.aaronvick.com/Moxie/11.JPG';
-
+function safeStringify(obj) {
     try {
+        return JSON.stringify(obj, null, 2);
+    } catch (error) {
+        return `[Error serializing object: ${error.message}]`;
+    }
+}
+
+function logError(message, error) {
+    console.error(`${message}:`);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Stack trace:', error.stack);
+    if (error.cause) {
+        console.error('Error cause:', error.cause);
+    }
+}
+
+module.exports = async (req, res) => {
+    try {
+        console.log('Received request method:', req.method);
+        console.log('Request headers:', safeStringify(req.headers));
+        console.log('Request body:', safeStringify(req.body));
+        console.log('Request query:', safeStringify(req.query));
+
+        // Set CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
+        }
+
+        const baseHtml = (image, buttonText, inputText) => {
+            const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || 'aaron-v-fan-token.vercel.app'}`);
+            console.log('Constructed post_url:', postUrl.toString());
+
+            return `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Moxie Auction Details</title>
+                    <meta property="fc:frame" content="vNext">
+                    <meta property="fc:frame:image" content="${image}">
+                    <meta property="fc:frame:post_url" content="${postUrl.toString()}">
+                    <meta property="fc:frame:button:1" content="${buttonText}">
+                    ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
+                </head>
+                <body>
+                    <h1>Moxie Auction Frame</h1>
+                </body>
+                </html>
+            `;
+        };
+
+        const defaultImage = 'https://www.aaronvick.com/Moxie/11.JPG';
+
         let html;
         if (req.method === 'GET' || !req.body) {
             console.log('Handling as GET request');
@@ -49,8 +74,25 @@ module.exports = async (req, res) => {
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
     } catch (error) {
-        console.error('Error processing request:', error);
-        const errorHtml = baseHtml(defaultImage, "Try Again", "Enter Farcaster name");
+        logError('Error in main handler', error);
+        const errorHtml = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Error</title>
+                <meta property="fc:frame" content="vNext">
+                <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+                <meta property="fc:frame:button:1" content="Try Again">
+            </head>
+            <body>
+                <h1>An error occurred</h1>
+                <p>Please try again later.</p>
+            </body>
+            </html>
+        `;
+        res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(errorHtml);
     }
 };
