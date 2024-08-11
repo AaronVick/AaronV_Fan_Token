@@ -50,8 +50,18 @@ function generateImageUrl(auctionData, displayName) {
     return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
+function getBaseUrl(req) {
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    return `${protocol}://${host}`;
+}
+
 module.exports = async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
+    console.log('Request headers:', JSON.stringify(req.headers));
+
+    const baseUrl = getBaseUrl(req);
+    console.log('Base URL:', baseUrl);
 
     try {
         const { untrustedData } = req.body || {};
@@ -111,10 +121,6 @@ module.exports = async (req, res) => {
             `;
         }
 
-        const postUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}/api/auctions`
-            : 'https://aaron-v-fan-token.vercel.app/api/auctions';
-
         const html = `
             <!DOCTYPE html>
             <html lang="en">
@@ -126,7 +132,7 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame:image" content="${generateImageUrl(auctionData, displayName)}">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
                 <meta property="fc:frame:button:1" content="View Auction Details">
-                <meta property="fc:frame:post_url" content="${postUrl}">
+                <meta property="fc:frame:post_url" content="${baseUrl}/api/auctions">
             </head>
             <body>
                 <h1>Auction Details for ${displayName}</h1>
@@ -139,10 +145,6 @@ module.exports = async (req, res) => {
         res.status(200).send(html);
     } catch (error) {
         console.error('Error in auctions:', error.message);
-        const postUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}/api/auctions`
-            : 'https://aaron-v-fan-token.vercel.app/api/auctions';
-
         res.status(500).send(`
             <!DOCTYPE html>
             <html lang="en">
@@ -154,7 +156,7 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
                 <meta property="fc:frame:button:1" content="Try Again">
-                <meta property="fc:frame:post_url" content="${postUrl}">
+                <meta property="fc:frame:post_url" content="${baseUrl}/api/auctions">
             </head>
             <body>
                 <h1>Error</h1>
