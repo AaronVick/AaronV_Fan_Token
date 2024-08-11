@@ -1,154 +1,158 @@
-const { init, fetchQuery } = require("@airstack/node");
-const fetch = require('node-fetch');
+const https = require('https');
+const url = require('url');
 
-const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
-const ERROR_IMAGE_URL = 'https://via.placeholder.com/500x300/8E55FF/FFFFFF?text=No%20Auction%20Data%20Available';
+const DEFAULT_FID = '354795'; // Default FID
 
-// Initialize Airstack SDK
-init(process.env.AIRSTACK_API_KEY || '');
-
-async function fetchFid(farcasterName) {
-    try {
-        const response = await fetch(`https://api.warpcast.com/v2/user-by-username?username=${farcasterName}`);
-        const fidJson = await response.json();
-
-        if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
-            return fidJson.result.user.fid.toString();
-        } else {
-            throw new Error('FID not found in the response');
-        }
-    } catch (error) {
-        console.error('Error fetching FID:', error);
-        throw error;
-    }
+function httpsGet(urlString, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const options = url.parse(urlString);
+        options.headers = headers;
+        https.get(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => resolve(data));
+        }).on('error', reject);
+    });
 }
 
-async function getFanTokenDataByFid(fid) {
+async function getAuctionData(fid) {
     try {
-        const query = `
-            query GetFanTokenDataByFid($fid: String, $entityTypes: [FarcasterFanTokenAuctionEntityType!], $blockchain: EveryBlockchain!, $limit: Int) {
-                FarcasterFanTokenAuctions(
-                    input: {filter: {entityId: {_eq: $fid}, entityType: {_in: $entityTypes}}, blockchain: $blockchain, limit: $limit}
-                ) {
-                    FarcasterFanTokenAuction {
-                        auctionId
-                        auctionSupply
-                        decimals
-                        entityId
-                        entityName
-                        entitySymbol
-                        estimatedEndTimestamp
-                        estimatedStartTimestamp
-                        minBiddingAmount
-                        minPriceInMoxie
-                        subjectAddress
-                        status
-                    }
-                }
-            }
-        `;
+        console.log(`Fetching auction data for FID: ${fid}`);
+        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
+        console.log('MoxieScout response received:', data);
 
-        const variables = {
-            fid: fid,
-            entityTypes: ['MOXIE'],
-            blockchain: 'ethereum',
-            limit: 1,
-        };
-
-        const response = await fetchQuery(query, variables);
-        console.log('Airstack API Response:', JSON.stringify(response, null, 2));
-
-        const auctionData = response.data?.FarcasterFanTokenAuctions?.FarcasterFanTokenAuction?.[0];
-        if (!auctionData) {
+        if (data.includes("Failed to load auction details. Please try again later.")) {
+            console.log('No auction data available');
             return { error: "No Auction Data Available" };
         }
+
+        const auctionData = {
+            clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        };
+
+        console.log('Parsed auction data:', auctionData);
         return auctionData;
     } catch (error) {
-        console.error('Error fetching fan token data:', error);
+        console.error('Error fetching auction data:', error.message);
         return { error: "Failed to fetch auction data" };
     }
 }
 
-function generateImageUrl(auctionData, farcasterName) {
-    if (auctionData.error) {
-        return ERROR_IMAGE_URL;
-    }
-
-    const text = `
-Auction for ${farcasterName}
-
-Clearing Price:  ${auctionData.minPriceInMoxie?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
-Auction Start:   ${new Date(parseInt(auctionData.estimatedStartTimestamp) * 1000).toLocaleString()}
-Auction End:     ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString()}
-Status:          ${auctionData.status}
-    `.trim();
-
-    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
+function generateImageUrl(auctionData, displayName) {
+    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
+    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
-module.exports = async function handler(req, res) {
+module.exports = async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
-
-    let imageUrl = DEFAULT_IMAGE_URL;
-    let farcasterName = '';
 
     try {
         const { untrustedData } = req.body || {};
-        farcasterName = untrustedData?.inputText || '';
+        const farcasterName = untrustedData?.inputText || '';
 
-        let fid = '354795'; // Default FID
+        console.log('Farcaster name:', farcasterName);
+
+        let fid = DEFAULT_FID;
+        let displayName = 'Default Account';
+
         if (farcasterName.trim() !== '') {
-            fid = await fetchFid(farcasterName);
+            try {
+                const headers = {
+                    'API-KEY': process.env.FarQuestAPI,
+                    'accept': 'application/json'
+                };
+                const fidData = await httpsGet(`https://build.far.quest/farcaster/v2/user-by-username?username=${farcasterName}`, headers);
+                const fidJson = JSON.parse(fidData);
+                if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
+                    fid = fidJson.result.user.fid;
+                    displayName = farcasterName;
+                    console.log(`Fetched FID: ${fid} for Farcaster name: ${farcasterName}`);
+                } else {
+                    throw new Error('FID not found in the response');
+                }
+            } catch (error) {
+                console.error('Error fetching FID:', error.message);
+                displayName = 'Invalid Farcaster name';
+            }
         }
 
-        const auctionData = await getFanTokenDataByFid(fid);
+        console.log('Using FID:', fid);
+
+        const auctionData = await getAuctionData(fid);
+
         console.log('Auction data:', auctionData);
 
-        imageUrl = auctionData.error ? ERROR_IMAGE_URL : generateImageUrl(auctionData, farcasterName);
+        let content;
+        if (auctionData.error) {
+            content = `<p>${auctionData.error}</p>`;
+        } else {
+            content = `
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <p>Clearing Price: ${auctionData.clearingPrice || 'N/A'}</p>
+                        <p>Auction Supply: ${auctionData.auctionSupply || 'N/A'}</p>
+                        <p>Auction Start: ${auctionData.auctionStart || 'N/A'}</p>
+                        <p>Auction End: ${auctionData.auctionEnd || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p>Total Orders: ${auctionData.totalOrders || 'N/A'}</p>
+                        <p>Unique Bidders: ${auctionData.uniqueBidders || 'N/A'}</p>
+                        <p>Status: ${auctionData.status || 'N/A'}</p>
+                        <p>Total Bid Value: ${auctionData.totalBidValue || 'N/A'}</p>
+                    </div>
+                </div>
+            `;
+        }
 
         const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moxie Auction Details</title>
-    <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${imageUrl}">
-    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-    <meta property="fc:frame:button:1" content="View">
-    <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL || 'https://aaron-v-fan-token.vercel.app'}/api/auctions">
-</head>
-<body>
-    <h1>Auction Details for ${farcasterName || 'Default Account'}</h1>
-    <img src="${imageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
-    ${auctionData.error ? '<p>Error: ' + auctionData.error + '</p>' : ''}
-</body>
-</html>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Moxie Auction Details</title>
+                <meta property="fc:frame" content="vNext">
+                <meta property="fc:frame:image" content="${generateImageUrl(auctionData, displayName)}">
+                <meta property="fc:frame:input:text" content="Enter Farcaster name">
+                <meta property="fc:frame:button:1" content="View Auction Details">
+                <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://aaron-v-fan-token.vercel.app'}/api/getAuctionDetails">
+            </head>
+            <body>
+                <h1>Auction Details for ${displayName}</h1>
+                ${content}
+            </body>
+            </html>
         `;
 
         res.setHeader('Content-Type', 'text/html');
         res.status(200).send(html);
     } catch (error) {
-        console.error('Error in handler:', error);
+        console.error('Error in getAuctionDetails:', error.message);
         res.status(500).send(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error</title>
-    <meta property="fc:frame" content="vNext">
-    <meta property="fc:frame:image" content="${ERROR_IMAGE_URL}">
-    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-    <meta property="fc:frame:button:1" content="Try Again">
-    <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL || 'https://aaron-v-fan-token.vercel.app'}/api/auctions">
-</head>
-<body>
-    <h1>Error</h1>
-    <p>Failed to fetch auction data. Please try again.</p>
-</body>
-</html>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Error</title>
+                <meta property="fc:frame" content="vNext">
+                <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+                <meta property="fc:frame:input:text" content="Enter Farcaster name">
+                <meta property="fc:frame:button:1" content="Try Again">
+                <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://aaron-v-fan-token.vercel.app'}/api/getAuctionDetails">
+            </head>
+            <body>
+                <h1>Error</h1>
+                <p>Failed to fetch auction data. Please try again.</p>
+            </body>
+            </html>
         `);
     }
 };
