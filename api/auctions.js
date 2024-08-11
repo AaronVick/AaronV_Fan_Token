@@ -17,6 +17,7 @@ function httpsGet(urlString, headers = {}) {
 }
 
 async function getAuctionData(fid) {
+    // Mock data - replace with actual API call
     return {
         auctionId: '1234',
         auctionSupply: '100',
@@ -64,24 +65,29 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
+    const baseHtml = (content, image) => `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Moxie Auction Details</title>
+            <meta property="fc:frame" content="vNext">
+            <meta property="fc:frame:image" content="${image}">
+            <meta property="fc:frame:post_url" content="${getPostUrl()}/api/auctions">
+            <meta property="fc:frame:input:text" content="Enter Farcaster name">
+        </head>
+        <body>
+            ${content}
+        </body>
+        </html>
+    `;
+
     if (req.method === 'GET') {
-        const initialHtml = `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Moxie Auction Details</title>
-                <meta property="fc:frame" content="vNext">
-                <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
-                <meta property="fc:frame:post_url" content="${getPostUrl()}/api/auctions">
-            </head>
-            <body>
-                <h1>Moxie Auction Frame</h1>
-                <p>Enter a Farcaster name to view auction details.</p>
-            </body>
-            </html>
-        `;
+        const initialHtml = baseHtml(
+            '<h1>Moxie Auction Frame</h1><p>Enter a Farcaster name to view auction details.</p>',
+            'https://www.aaronvick.com/Moxie/11.JPG'
+        );
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(initialHtml);
     }
@@ -92,7 +98,7 @@ module.exports = async (req, res) => {
             const farcasterName = untrustedData?.inputText || '';
 
             let fid = DEFAULT_FID;
-            let displayName = 'Default Account';
+            let displayName = farcasterName || 'Default Account';
 
             if (farcasterName.trim() !== '') {
                 try {
@@ -104,9 +110,8 @@ module.exports = async (req, res) => {
                     const fidJson = JSON.parse(fidData);
                     if (fidJson.result && fidJson.result.user && fidJson.result.user.fid) {
                         fid = fidJson.result.user.fid;
-                        displayName = farcasterName;
                     } else {
-                        throw new Error('FID not found in the response');
+                        displayName = 'Invalid Farcaster name';
                     }
                 } catch (error) {
                     displayName = 'Invalid Farcaster name';
@@ -116,6 +121,7 @@ module.exports = async (req, res) => {
             const auctionData = await getAuctionData(fid);
 
             const content = `
+                <h1>Auction Details for ${displayName}</h1>
                 <div style="display: flex; justify-content: space-between;">
                     <div>
                         <p>Clearing Price: ${auctionData.clearingPrice || 'N/A'}</p>
@@ -132,45 +138,17 @@ module.exports = async (req, res) => {
                 </div>
             `;
 
-            const html = `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Moxie Auction Details</title>
-                    <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="${generateImageUrl(auctionData, displayName)}">
-                    <meta property="fc:frame:post_url" content="${getPostUrl()}/api/auctions">
-                </head>
-                <body>
-                    <h1>Auction Details for ${displayName}</h1>
-                    ${content}
-                </body>
-                </html>
-            `;
+            const html = baseHtml(content, generateImageUrl(auctionData, displayName));
 
             res.setHeader('Content-Type', 'text/html');
             return res.status(200).send(html);
         } catch (error) {
-            const errorHtml = `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Error</title>
-                    <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
-                    <meta property="fc:frame:post_url" content="${getPostUrl()}/api/auctions">
-                </head>
-                <body>
-                    <h1>Error</h1>
-                    <p>Failed to fetch auction data. Please try again.</p>
-                </body>
-                </html>
-            `;
-            return res.status(500).send(errorHtml);
+            console.error('Error:', error);
+            const errorHtml = baseHtml(
+                '<h1>Error</h1><p>Failed to fetch auction data. Please try again.</p>',
+                'https://www.aaronvick.com/Moxie/11.JPG'
+            );
+            return res.status(200).send(errorHtml);
         }
     }
 
