@@ -18,6 +18,19 @@ function logError(message, error) {
     }
 }
 
+function generateImageUrl(auctionData, farcasterName) {
+    const text = `
+Auction for ${farcasterName}
+
+Clearing Price:  ${auctionData.clearingPrice?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
+Auction Start:   ${new Date(parseInt(auctionData.startTime)).toLocaleString()}
+Auction End:     ${new Date(parseInt(auctionData.endTime)).toLocaleString()}
+Status:          ${auctionData.status}
+    `.trim();
+
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
+}
+
 module.exports = async (req, res) => {
     try {
         console.log('Received request method:', req.method);
@@ -67,7 +80,24 @@ module.exports = async (req, res) => {
         } else {
             console.log('Handling as POST request');
             const farcasterName = req.body.untrustedData?.inputText || 'Unknown User';
-            html = baseHtml(defaultImage, "Check Another Auction", "Enter Farcaster name");
+            
+            // Mock auction data
+            const auctionData = {
+                auctionId: '1234',
+                auctionSupply: '100',
+                clearingPrice: '50',
+                status: 'active',
+                startTime: Date.now().toString(),
+                endTime: (Date.now() + 86400000).toString(), // 24 hours from now
+                totalOrders: '20',
+                uniqueBidders: '10',
+                totalBidValue: '500',
+            };
+
+            const dynamicImageUrl = generateImageUrl(auctionData, farcasterName);
+            console.log('Generated dynamic image URL:', dynamicImageUrl);
+
+            html = baseHtml(dynamicImageUrl, "Check Another Auction", "Enter Farcaster name");
         }
 
         console.log('Sending HTML response');
