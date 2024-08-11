@@ -3,6 +3,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import fetch from 'node-fetch';
 
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
+const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 
 // Initialize Airstack
 init(process.env.AIRSTACK_API_KEY);
@@ -109,8 +110,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             <meta property="fc:frame" content="vNext">
             <meta property="fc:frame:image" content="${image}">
             <meta property="fc:frame:post_url" content="${getPostUrl()}">
-            <meta property="fc:frame:input:text" content="Enter Farcaster name">
             <meta property="fc:frame:button:1" content="${buttonText}">
+            <meta property="fc:frame:input:text" content="Enter Farcaster name">
             <meta property="og:title" content="Moxie Auction Details">
         </head>
         <body>
@@ -121,7 +122,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
     const initialHtml = baseHtml(
         '<h1>Moxie Auction Frame</h1><p>Enter a Farcaster name to view auction details.</p>',
-        'https://www.aaronvick.com/Moxie/11.JPG',
+        DEFAULT_IMAGE_URL,
         'View Auction Details'
     );
 
@@ -179,7 +180,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
                 </div>
             `;
 
-            const html = baseHtml(content, generateImageUrl(auctionData, farcasterName), 'Check Another Auction');
+            const imageUrl = generateImageUrl(auctionData, farcasterName);
+            const html = baseHtml(content, imageUrl, 'Check Another Auction');
 
             console.log('Sending response HTML');
             res.setHeader('Content-Type', 'text/html');
@@ -188,7 +190,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             console.error('Error in POST handler:', error);
             const errorHtml = baseHtml(
                 '<h1>Error</h1><p>Failed to fetch auction data. Please try again.</p>',
-                'https://www.aaronvick.com/Moxie/11.JPG',
+                DEFAULT_IMAGE_URL,
                 'Try Again'
             );
             return res.status(200).send(errorHtml);
