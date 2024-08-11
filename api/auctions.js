@@ -57,9 +57,9 @@ function httpsPost(url, data, headers = {}) {
 
 async function getUserDataFromAirstack(username) {
     const query = `
-        query GetUserByUsername($username: String!) {
+        query GetUserByUsername($identity: Identity!) {
             Socials(
-                input: {filter: {username: {_eq: $username}}, blockchain: ethereum}
+                input: {filter: {identity: {_eq: $identity}}, blockchain: ethereum}
             ) {
                 Social {
                     userId
@@ -73,7 +73,7 @@ async function getUserDataFromAirstack(username) {
             }
         }
     `;
-    const variables = { username };
+    const variables = { identity: username };
 
     const headers = {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
@@ -84,9 +84,9 @@ async function getUserDataFromAirstack(username) {
 
 async function getMoxieAuctionData(fid) {
     const query = `
-        query GetMoxieAuctionData($fid: String!) {
+        query GetMoxieAuctionData($identity: Identity!) {
             TokenBalances(
-                input: {filter: {owner: {_eq: $fid}, tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: ethereum, limit: 1}
+                input: {filter: {owner: {_eq: $identity}, tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: ethereum, limit: 1}
             ) {
                 TokenBalance {
                     amount
@@ -99,7 +99,7 @@ async function getMoxieAuctionData(fid) {
             }
         }
     `;
-    const variables = { fid };
+    const variables = { identity: `fc_fid:${fid}` };
 
     const headers = {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
@@ -149,13 +149,11 @@ Details: ${errorInfo.details || 'No additional details'}
         text = `
 Auction for ${farcasterName}
 
-Clearing Price: ${auctionData.clearingPrice.padEnd(20)} Auction Supply: ${auctionData.auctionSupply.padEnd(10)}
-Auction Start:  ${auctionData.startTime.padEnd(25)}
-Auction End:    ${auctionData.endTime.padEnd(25)}
-Status:         ${auctionData.status.padEnd(20)}
-Total Orders:   ${auctionData.totalOrders.padEnd(20)}
-Unique Bidders: ${auctionData.uniqueBidders.padEnd(20)}
-Total Bid Value:${auctionData.totalBidValue.padEnd(20)}
+Auction ID:     ${(auctionData.auctionId || 'N/A').padEnd(20)}
+Auction Supply: ${(auctionData.auctionSupply || 'N/A').padEnd(20)}
+Clearing Price: ${(auctionData.clearingPrice || 'N/A').padEnd(20)}
+Status:         ${(auctionData.status || 'N/A').padEnd(20)}
+Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
         `.trim();
     }
 
@@ -213,6 +211,7 @@ module.exports = async (req, res) => {
             let fid = DEFAULT_FID;
             let displayName = 'Unknown User';
             let errorInfo = null;
+            let auctionData = null;
 
             if (farcasterName.trim() !== '') {
                 try {
@@ -241,24 +240,10 @@ module.exports = async (req, res) => {
                 }
             }
 
-            let auctionData;
             if (!errorInfo) {
                 try {
-                    const moxieData = await getMoxieAuctionData(fid);
-                    console.log('Moxie auction data:', safeStringify(moxieData));
-                    // Process moxieData to extract relevant auction information
-                    // This is a placeholder. Replace with actual data processing based on the Moxie auction data structure
-                    auctionData = {
-                        auctionId: '1234',
-                        auctionSupply: '100',
-                        clearingPrice: '50',
-                        status: 'active',
-                        startTime: new Date(Date.now()).toLocaleString(),
-                        endTime: new Date(Date.now() + 86400000).toLocaleString(), // 24 hours from now
-                        totalOrders: '20',
-                        uniqueBidders: '10',
-                        totalBidValue: '500',
-                    };
+                    auctionData = await getMoxieAuctionData(fid);
+                    console.log('Processed Moxie auction data:', safeStringify(auctionData));
                 } catch (error) {
                     console.error('Error fetching Moxie auction data:', error);
                     errorInfo = {
