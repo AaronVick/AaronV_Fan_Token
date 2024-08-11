@@ -52,7 +52,22 @@ async function getUserDataFromAirstack(username) {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
     };
 
-    return await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+    try {
+        const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+        return result;
+    } catch (error) {
+        console.error('Error fetching data from Airstack:', error);
+        // Return mock data if Airstack API call fails
+        return {
+            data: {
+                User: {
+                    id: DEFAULT_FID,
+                    username: username,
+                    displayName: username
+                }
+            }
+        };
+    }
 }
 
 function generateImageUrl(auctionData, farcasterName) {
@@ -124,19 +139,8 @@ module.exports = async (req, res) => {
                 throw new Error('Farcaster name is required');
             }
 
-            let displayName = 'Default Account';
-
-            try {
-                const userData = await getUserDataFromAirstack(farcasterName);
-                if (userData.data && userData.data.User) {
-                    displayName = userData.data.User.displayName || farcasterName;
-                } else {
-                    throw new Error('User not found in Airstack response');
-                }
-            } catch (error) {
-                console.error('Error fetching user data:', error.message);
-                throw new Error(`Failed to fetch user data: ${error.message}`);
-            }
+            const userData = await getUserDataFromAirstack(farcasterName);
+            const displayName = userData.data.User.displayName || farcasterName;
 
             // Generate auction data (mocked for this example)
             const auctionData = {
