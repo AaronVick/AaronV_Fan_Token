@@ -1,12 +1,16 @@
-const { init, fetchQuery } = require('@airstack/node');
-const https = require('https');
+import { init, fetchQuery } from '@airstack/node';
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import fetch from 'node-fetch';
 
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 
 // Initialize Airstack
 init(process.env.AIRSTACK_API_KEY);
 
-async function getAuctionData(fid) {
+console.log('Airstack initialized with API key:', process.env.AIRSTACK_API_KEY ? 'Present' : 'Missing');
+
+async function getAuctionData(fid: string) {
+    console.log('Fetching auction data for FID:', fid);
     const query = `
     query GetTokenHoldings($identity: Identity!) {
       TokenBalances(
@@ -29,15 +33,19 @@ async function getAuctionData(fid) {
     };
 
     try {
+        console.log('Executing Airstack query');
         const { data, error } = await fetchQuery(query, variables);
         if (error) {
+            console.error('Airstack query error:', error);
             throw new Error(error.message);
         }
+        console.log('Airstack query successful');
 
         // Process the data to extract relevant auction information
-        // This is a placeholder implementation and should be adjusted based on your specific needs
         const tokenBalances = data.TokenBalances.TokenBalance;
-        const totalValue = tokenBalances.reduce((sum, balance) => sum + parseFloat(balance.formattedAmount), 0);
+        const totalValue = tokenBalances.reduce((sum: number, balance: any) => sum + parseFloat(balance.formattedAmount), 0);
+
+        console.log('Processed auction data:', { tokenBalances: tokenBalances.length, totalValue });
 
         return {
             auctionId: fid,
@@ -51,12 +59,12 @@ async function getAuctionData(fid) {
             totalBidValue: totalValue.toFixed(2),
         };
     } catch (error) {
-        console.error('Error fetching auction data:', error);
+        console.error('Error in getAuctionData:', error);
         throw error;
     }
 }
 
-function generateImageUrl(auctionData, farcasterName) {
+function generateImageUrl(auctionData: any, farcasterName: string) {
     const text = `
 Auction for ${farcasterName}
 
@@ -78,8 +86,9 @@ function getPostUrl() {
     return FALLBACK_URL;
 }
 
-module.exports = async (req, res) => {
+export default async (req: VercelRequest, res: VercelResponse) => {
     console.log('Received request method:', req.method);
+    console.log('Request body:', JSON.stringify(req.body));
 
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -90,7 +99,7 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
-    const baseHtml = (content, image, buttonText) => `
+    const baseHtml = (content: string, image: string, buttonText: string) => `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -117,16 +126,20 @@ module.exports = async (req, res) => {
     );
 
     if (req.method === 'GET' || !req.body?.untrustedData?.inputText) {
+        console.log('Sending initial HTML');
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(initialHtml);
     }
 
     if (req.method === 'POST') {
         try {
+            console.log('Processing POST request');
             const { untrustedData } = req.body;
             const farcasterName = untrustedData.inputText || '';
+            console.log('Farcaster name:', farcasterName);
 
             // Fetch FID using the Farcaster name
+            console.log('Fetching FID from Farcaster API');
             const fidResponse = await fetch(`https://api.farcaster.xyz/v2/user-by-username?username=${farcasterName}`, {
                 headers: {
                     'Accept': 'application/json',
@@ -135,13 +148,18 @@ module.exports = async (req, res) => {
             });
 
             if (!fidResponse.ok) {
+                console.error('Failed to fetch FID. Status:', fidResponse.status);
+                console.error('Response:', await fidResponse.text());
                 throw new Error('Failed to fetch FID');
             }
 
             const fidData = await fidResponse.json();
+            console.log('FID data:', fidData);
             const fid = fidData.result.user.fid;
+            console.log('Fetched FID:', fid);
 
             const auctionData = await getAuctionData(fid);
+            console.log('Auction data:', auctionData);
 
             const content = `
                 <h1>Auction Details for ${farcasterName}</h1>
@@ -163,10 +181,11 @@ module.exports = async (req, res) => {
 
             const html = baseHtml(content, generateImageUrl(auctionData, farcasterName), 'Check Another Auction');
 
+            console.log('Sending response HTML');
             res.setHeader('Content-Type', 'text/html');
             return res.status(200).send(html);
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error in POST handler:', error);
             const errorHtml = baseHtml(
                 '<h1>Error</h1><p>Failed to fetch auction data. Please try again.</p>',
                 'https://www.aaronvick.com/Moxie/11.JPG',
@@ -177,5 +196,6 @@ module.exports = async (req, res) => {
     }
 
     // If the method is not supported
+    console.log('Unsupported method:', req.method);
     return res.status(405).send('Method Not Allowed');
 };
