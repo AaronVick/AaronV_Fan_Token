@@ -5,7 +5,7 @@
     { "src": "api/auctions.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/auction", "dest": "/api/auctions.js" },
+    { "src": "/api/auctions", "dest": "/api/auctions.js" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
