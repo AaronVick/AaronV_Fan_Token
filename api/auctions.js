@@ -2,29 +2,57 @@ const https = require('https');
 const url = require('url');
 
 const DEFAULT_FID = '354795'; // Default FID
-const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app'; // Replace with your actual fallback URL
+const VERCEL_URL = 'https://aaron-v-fan-token.vercel.app';
 
-// ... (keep all the existing functions: httpsGet, getAuctionData, generateImageUrl)
+function httpsGet(urlString, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const options = url.parse(urlString);
+        options.headers = headers;
+        https.get(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => resolve(data));
+        }).on('error', reject);
+    });
+}
 
-function getPostUrl() {
-    if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}`;
-    } else if (process.env.CUSTOM_URL) {
-        return process.env.CUSTOM_URL;
+async function getAuctionData(fid) {
+    try {
+        console.log(`Fetching auction data for FID: ${fid}`);
+        const data = await httpsGet(`https://moxiescout.vercel.app/auction/${fid}`);
+        console.log('MoxieScout response received:', data);
+
+        if (data.includes("Failed to load auction details. Please try again later.")) {
+            console.log('No auction data available');
+            return { error: "No Auction Data Available" };
+        }
+
+        const auctionData = {
+            clearingPrice: data.match(/Clearing Price<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionSupply: data.match(/Auction Supply<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionStart: data.match(/Auction Start<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            auctionEnd: data.match(/Auction End<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalOrders: data.match(/Total Orders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            uniqueBidders: data.match(/Unique Bidders<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            status: data.match(/Status<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+            totalBidValue: data.match(/Total Bid Value<\/div><div[^>]*>([^<]+)/)?.[1] || 'N/A',
+        };
+
+        console.log('Parsed auction data:', auctionData);
+        return auctionData;
+    } catch (error) {
+        console.error('Error fetching auction data:', error.message);
+        return { error: "Failed to fetch auction data" };
     }
-    return FALLBACK_URL;
+}
+
+function generateImageUrl(auctionData, displayName) {
+    const text = `Auction for ${displayName}%0AClearing Price: ${auctionData.clearingPrice}%0AAuction Supply: ${auctionData.auctionSupply}%0AStatus: ${auctionData.status}%0ATotal Bid Value: ${auctionData.totalBidValue}`;
+    return `https://via.placeholder.com/500x300/1e3a8a/ffffff?text=${encodeURIComponent(text)}`;
 }
 
 module.exports = async (req, res) => {
     console.log('Received request:', JSON.stringify(req.body));
-    console.log('Request headers:', JSON.stringify(req.headers));
-    console.log('Environment variables:', {
-        VERCEL_URL: process.env.VERCEL_URL,
-        CUSTOM_URL: process.env.CUSTOM_URL
-    });
-
-    const postUrl = getPostUrl();
-    console.log('Using post URL:', postUrl);
 
     try {
         const { untrustedData } = req.body || {};
@@ -95,7 +123,7 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame:image" content="${generateImageUrl(auctionData, displayName)}">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
                 <meta property="fc:frame:button:1" content="View Auction Details">
-                <meta property="fc:frame:post_url" content="${postUrl}/api/auctions">
+                <meta property="fc:frame:post_url" content="${VERCEL_URL}/api/auctions">
             </head>
             <body>
                 <h1>Auction Details for ${displayName}</h1>
@@ -119,7 +147,7 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
                 <meta property="fc:frame:button:1" content="Try Again">
-                <meta property="fc:frame:post_url" content="${postUrl}/api/auctions">
+                <meta property="fc:frame:post_url" content="${VERCEL_URL}/api/auctions">
             </head>
             <body>
                 <h1>Error</h1>
