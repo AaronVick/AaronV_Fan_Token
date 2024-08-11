@@ -41,7 +41,7 @@ function httpsPost(url, data, headers = {}) {
                         const parsedData = JSON.parse(body);
                         resolve(parsedData);
                     } catch (error) {
-                        reject(new Error('Failed to parse response from Airstack'));
+                        reject(new Error(`Failed to parse response from Airstack: ${error.message}`));
                     }
                 } else {
                     reject(new Error(`HTTP Error ${res.statusCode}: ${body}`));
@@ -83,7 +83,14 @@ async function getUserDataFromAirstack(username) {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
     };
 
-    return await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+    try {
+        const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+        console.log('Airstack user data response:', safeStringify(result));
+        return result;
+    } catch (error) {
+        console.error('Error in getUserDataFromAirstack:', error);
+        throw new Error(`Airstack API Error: ${error.message}`);
+    }
 }
 
 async function getMoxieAuctionData(fid) {
@@ -127,31 +134,31 @@ async function getMoxieAuctionData(fid) {
         console.log('Moxie auction data result:', safeStringify(result));
         
         if (result.errors) {
-            throw new Error(result.errors[0].message);
+            throw new Error(`Airstack query error: ${result.errors[0].message}`);
         }
         
-        if (!result.data || !result.data.TokenBalances || !result.data.TokenBalances.TokenBalance) {
-            throw new Error('No Moxie auction data found');
+        if (!result.data || (!result.data.TokenBalances?.TokenBalance && !result.data.TokenNfts?.TokenNft)) {
+            throw new Error('No Moxie auction data found in Airstack response');
         }
         
-        const tokenBalance = result.data.TokenBalances.TokenBalance[0];
-        const tokenNft = result.data.TokenNfts.TokenNft[0];
+        const tokenBalance = result.data.TokenBalances?.TokenBalance?.[0];
+        const tokenNft = result.data.TokenNfts?.TokenNft?.[0];
         
         return {
             auctionId: fid,
-            auctionSupply: tokenBalance.amount || 'N/A',
-            clearingPrice: 'N/A', // This information might not be available from this query
-            status: tokenBalance.amount > 0 ? 'Active' : 'Inactive',
-            startTime: 'N/A', // This information is not available from this query
-            endTime: 'N/A', // This information is not available from this query
-            totalOrders: 'N/A', // This information is not available from this query
-            uniqueBidders: 'N/A', // This information is not available from this query
-            totalBidValue: tokenBalance.formattedAmount || 'N/A',
+            auctionSupply: tokenBalance?.amount || 'N/A',
+            clearingPrice: 'N/A',
+            status: tokenBalance?.amount > 0 ? 'Active' : 'Inactive',
+            startTime: 'N/A',
+            endTime: 'N/A',
+            totalOrders: 'N/A',
+            uniqueBidders: 'N/A',
+            totalBidValue: tokenBalance?.formattedAmount || 'N/A',
             tokenImage: tokenNft?.contentValue?.image?.original || null
         };
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
-        throw error;
+        throw new Error(`Moxie Data Error: ${error.message}`);
     }
 }
 
@@ -164,6 +171,10 @@ Error for ${farcasterName}
 Error Type: ${errorInfo.type}
 Error Message: ${errorInfo.message}
 Details: ${errorInfo.details || 'No additional details'}
+
+API Key Status: ${process.env.AIRSTACK_API_KEY ? 'Present' : 'Missing'}
+Query Execution: ${errorInfo.queryExecuted ? 'Attempted' : 'Not Attempted'}
+Airstack Access: ${errorInfo.airstackAccessed ? 'Successful' : 'Failed'}
         `.trim();
     } else {
         text = `
@@ -247,7 +258,9 @@ module.exports = async (req, res) => {
                         errorInfo = {
                             type: 'User Not Found',
                             message: 'The specified Farcaster name was not found in Airstack.',
-                            details: `Searched for: ${farcasterName}`
+                            details: `Searched for: ${farcasterName}`,
+                            queryExecuted: true,
+                            airstackAccessed: true
                         };
                     }
                 } catch (error) {
@@ -255,7 +268,9 @@ module.exports = async (req, res) => {
                     errorInfo = {
                         type: 'Airstack API Error',
                         message: 'Failed to fetch user data from Airstack.',
-                        details: error.message
+                        details: error.message,
+                        queryExecuted: true,
+                        airstackAccessed: false
                     };
                 }
             }
@@ -269,7 +284,9 @@ module.exports = async (req, res) => {
                     errorInfo = {
                         type: 'Moxie Data Error',
                         message: 'Failed to fetch or process Moxie auction data.',
-                        details: error.message
+                        details: error.message,
+                        queryExecuted: true,
+                        airstackAccessed: true
                     };
                 }
             }
@@ -288,7 +305,9 @@ module.exports = async (req, res) => {
         const errorImageUrl = generateImageUrl(null, 'Error', {
             type: 'Unexpected Error',
             message: 'An unexpected error occurred while processing the request.',
-            details: error.message
+            details: error.message,
+            queryExecuted: false,
+            airstackAccessed: false
         });
         const errorHtml = baseHtml(errorImageUrl, "Try Again", "Enter Farcaster name");
         return res.status(200).send(errorHtml);
