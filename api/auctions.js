@@ -2,7 +2,7 @@ const url = require('url');
 const https = require('https');
 
 const AIRSTACK_API_URL = 'https://api.airstack.xyz/graphql';
-const DEFAULT_FID = '354795'; // Default Farcaster ID
+const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 
@@ -14,7 +14,7 @@ function safeStringify(obj) {
     }
 }
 
-function logError(message, error) {
+function logError(message, error, additionalInfo = {}) {
     console.error(`${message}:`);
     console.error('Error name:', error.name);
     console.error('Error message:', error.message);
@@ -22,6 +22,7 @@ function logError(message, error) {
     if (error.cause) {
         console.error('Error cause:', error.cause);
     }
+    console.error('Additional Info:', safeStringify(additionalInfo));
 }
 
 function httpsPost(url, data, headers = {}) {
@@ -107,60 +108,48 @@ async function getMoxieAuctionData(fid) {
 
     try {
         const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
-        console.log('Raw Moxie auction data result:', result);
-        console.log('Stringified Moxie auction data result:', safeStringify(result));
+        console.log('Moxie auction data result:', safeStringify(result));
         
         if (result.errors) {
-            throw new Error(`Airstack API errors: ${safeStringify(result.errors)}`);
+            throw new Error(result.errors[0].message);
         }
         
         if (!result.data || !result.data.TokenBalances || !result.data.TokenBalances.TokenBalance) {
-            console.log('Unexpected Moxie data structure:', safeStringify(result));
-            throw new Error('Unexpected Moxie data structure');
+            throw new Error('No Moxie auction data found');
         }
         
         const tokenBalance = result.data.TokenBalances.TokenBalance[0];
         return {
             auctionId: fid,
             auctionSupply: tokenBalance.amount || 'N/A',
-            clearingPrice: 'N/A', // This information might not be available from this query
+            clearingPrice: 'N/A',
             status: tokenBalance.amount > 0 ? 'Active' : 'Inactive',
-            startTime: 'N/A', // This information is not available from this query
-            endTime: 'N/A', // This information is not available from this query
-            totalOrders: 'N/A', // This information is not available from this query
-            uniqueBidders: 'N/A', // This information is not available from this query
+            startTime: 'N/A',
+            endTime: 'N/A',
+            totalOrders: 'N/A',
+            uniqueBidders: 'N/A',
             totalBidValue: tokenBalance.formattedAmount || 'N/A'
         };
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
-        console.error('Error stack:', error.stack);
         throw error;
     }
 }
 
 function generateImageUrl(auctionData, farcasterName, errorInfo = null, debugInfo = '') {
-    function wrapText(text, maxLineLength) {
-        return text.replace(
-            new RegExp(`(?![^\\n]{1,${maxLineLength}}$)([^\\n]{1,${maxLineLength}})\\s`, 'g'),
-            '$1\n'
-        );
-    }
-
     let text;
-    const maxLineLength = 60; // Adjust this value as needed
-
     if (errorInfo) {
         text = `
 Error for ${farcasterName}
 
 Error Type: ${errorInfo.type}
-Error Message: ${wrapText(errorInfo.message.substring(0, 500), maxLineLength)}
-Details: ${wrapText((errorInfo.details || 'No additional details').substring(0, 500), maxLineLength)}
+Error Message: ${errorInfo.message}
+Details: ${errorInfo.details || 'No additional details'}
 
 Debug Info:
-${wrapText(debugInfo.substring(0, 1000), maxLineLength)}
+${debugInfo}
         `.trim();
-    } else if (auctionData) {
+    } else {
         text = `
 Auction for ${farcasterName}
 
@@ -169,22 +158,10 @@ Auction Supply: ${(auctionData.auctionSupply || 'N/A').padEnd(20)}
 Clearing Price: ${(auctionData.clearingPrice || 'N/A').padEnd(20)}
 Status:         ${(auctionData.status || 'N/A').padEnd(20)}
 Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
-
-Debug Info:
-${wrapText(debugInfo.substring(0, 1000), maxLineLength)}
-        `.trim();
-    } else {
-        text = `
-No auction data available for ${farcasterName}
-
-Debug Info:
-${wrapText(debugInfo.substring(0, 1000), maxLineLength)}
         `.trim();
     }
 
-    text = text.substring(0, 2000); // Limit total text length
-
-    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=12&weight=bold`;
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
 }
 
 module.exports = async (req, res) => {
@@ -194,9 +171,6 @@ module.exports = async (req, res) => {
         console.log('Request headers:', safeStringify(req.headers));
         console.log('Request body:', safeStringify(req.body));
         console.log('Request query:', safeStringify(req.query));
-
-        debugInfo += `Request method: ${req.method}\n`;
-        debugInfo += `Request body: ${safeStringify(req.body)}\n`;
 
         // Set CORS headers
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -210,7 +184,6 @@ module.exports = async (req, res) => {
         const baseHtml = (image, buttonText, inputText) => {
             const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || 'aaron-v-fan-token.vercel.app'}`);
             console.log('Constructed post_url:', postUrl.toString());
-            debugInfo += `Post URL: ${postUrl.toString()}\n`;
 
             return `
                 <!DOCTYPE html>
@@ -235,33 +208,33 @@ module.exports = async (req, res) => {
         let html;
         if (req.method === 'GET' || !req.body) {
             console.log('Handling as GET request');
-            debugInfo += 'Handling as GET request\n';
             html = baseHtml(DEFAULT_IMAGE_URL, "View Auction Details", "Enter Farcaster name");
         } else {
             console.log('Handling as POST request');
-            debugInfo += 'Handling as POST request\n';
             const farcasterName = req.body.untrustedData?.inputText || '';
-            debugInfo += `Farcaster name input: "${farcasterName}"\n`;
             
             let fid = DEFAULT_FID;
             let displayName = 'Unknown User';
             let errorInfo = null;
             let auctionData = null;
+            let userData = null;
+
+            debugInfo += '--- Debug Info ---\n';
+            debugInfo += `Timestamp: ${new Date().toISOString()}\n`;
+            debugInfo += `Request method: ${req.method}\n`;
+            debugInfo += `Farcaster name: ${farcasterName || 'Not provided'}\n`;
 
             if (farcasterName.trim() !== '') {
                 try {
-                    const userData = await getUserDataFromAirstack(farcasterName);
+                    userData = await getUserDataFromAirstack(farcasterName);
                     console.log('Airstack user data:', safeStringify(userData));
-                    debugInfo += `Airstack user data: ${safeStringify(userData)}\n`;
                     
                     if (userData.data && userData.data.Socials && userData.data.Socials.Social && userData.data.Socials.Social.length > 0) {
                         const user = userData.data.Socials.Social[0];
                         fid = user.userId;
                         displayName = user.username || farcasterName;
-                        debugInfo += `Found user. FID: ${fid}, Display Name: ${displayName}\n`;
                     } else {
                         console.log('User not found in Airstack');
-                        debugInfo += 'User not found in Airstack\n';
                         errorInfo = {
                             type: 'User Not Found',
                             message: 'The specified Farcaster name was not found in Airstack.',
@@ -270,26 +243,23 @@ module.exports = async (req, res) => {
                     }
                 } catch (error) {
                     console.error('Error fetching user data from Airstack:', error);
-                    debugInfo += `Error fetching user data: ${error.message}\n`;
                     errorInfo = {
                         type: 'Airstack API Error',
                         message: 'Failed to fetch user data from Airstack.',
                         details: error.message
                     };
                 }
-            } else {
-                displayName = 'Default User';
-                debugInfo += `Using default FID: ${fid}\n`;
             }
+
+            debugInfo += `FID used: ${fid}\n`;
+            debugInfo += `Display name: ${displayName}\n`;
 
             if (!errorInfo) {
                 try {
                     auctionData = await getMoxieAuctionData(fid);
                     console.log('Processed Moxie auction data:', safeStringify(auctionData));
-                    debugInfo += `Moxie auction data: ${safeStringify(auctionData)}\n`;
                 } catch (error) {
                     console.error('Error fetching Moxie auction data:', error);
-                    debugInfo += `Error fetching Moxie data: ${error.message}\n`;
                     errorInfo = {
                         type: 'Moxie Data Error',
                         message: 'Failed to fetch or process Moxie auction data.',
@@ -297,6 +267,10 @@ module.exports = async (req, res) => {
                     };
                 }
             }
+
+            debugInfo += '--- API Responses ---\n';
+            debugInfo += `User data: ${safeStringify(userData).substring(0, 200)}...\n`;
+            debugInfo += `Auction data: ${safeStringify(auctionData).substring(0, 200)}...\n`;
 
             const dynamicImageUrl = generateImageUrl(auctionData, displayName, errorInfo, debugInfo);
             console.log('Generated dynamic image URL:', dynamicImageUrl);
@@ -308,13 +282,15 @@ module.exports = async (req, res) => {
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
     } catch (error) {
-        logError('Error in main handler', error);
-        debugInfo += `Unexpected error: ${error.toString().substring(0, 500)}\n`;
-        debugInfo += `Stack trace: ${error.stack ? error.stack.substring(0, 500) : 'No stack trace'}\n`;
+        debugInfo += '--- Unexpected Error ---\n';
+        debugInfo += `Error: ${error.message}\n`;
+        debugInfo += `Stack: ${error.stack}\n`;
+
+        logError('Error in main handler', error, { debugInfo });
         const errorImageUrl = generateImageUrl(null, 'Error', {
             type: 'Unexpected Error',
-            message: error.toString().substring(0, 500),
-            details: error.stack ? error.stack.substring(0, 500) : 'No stack trace'
+            message: 'An unexpected error occurred while processing the request.',
+            details: error.message
         }, debugInfo);
         const errorHtml = baseHtml(errorImageUrl, "Try Again", "Enter Farcaster name");
         return res.status(200).send(errorHtml);
