@@ -1,10 +1,10 @@
 {
   "name": "moxie-auction",
   "version": "1.0.0",
-  "main": "api/auctions.js",  // Update to point to the main serverless function file
+  "main": "api/auctions.js",  // Points to the main serverless function file
   "scripts": {
-    "build": "tsc",  // Compiles TypeScript to JavaScript (ensure that your TypeScript files are set up correctly)
-    "start": "node dist/api/auctions.js",  // Run the transpiled file (if using TypeScript)
+    "build": "tsc",  // Compiles TypeScript to JavaScript
+    "start": "node dist/api/auctions.js",  // Run the transpiled file
     "dev": "ts-node src/auctions.ts"  // For development, run the TypeScript file directly
   },
   "dependencies": {
