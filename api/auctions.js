@@ -5,10 +5,67 @@ const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 
-// Keep your existing httpsPost and getUserDataFromAirstack functions
+function httpsPost(url, data, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const req = https.request(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...headers,
+            }
+        }, res => {
+            let body = '';
+            res.on('data', chunk => body += chunk);
+            res.on('end', () => {
+                if (res.statusCode === 200) {
+                    try {
+                        const parsedData = JSON.parse(body);
+                        resolve(parsedData);
+                    } catch (error) {
+                        reject(new Error('Failed to parse response from Airstack'));
+                    }
+                } else {
+                    reject(new Error(`HTTP Error ${res.statusCode}: ${body}`));
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.write(JSON.stringify(data));
+        req.end();
+    });
+}
+
+async function getUserDataFromAirstack(username) {
+    const query = `
+        query GetUserByUsername($username: String!) {
+            User(username: $username) {
+                id
+                username
+                displayName
+            }
+        }
+    `;
+    const variables = { username };
+
+    const headers = {
+        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
+    };
+
+    return await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+}
 
 function generateImageUrl(auctionData, farcasterName) {
-    // Keep your existing implementation
+    const text = `
+Auction for ${farcasterName}
+
+Clearing Price:  ${auctionData.clearingPrice?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
+Auction Start:   ${new Date(parseInt(auctionData.startTime) * 1000).toLocaleString()}
+Auction End:     ${new Date(parseInt(auctionData.endTime) * 1000).toLocaleString()}
+Status:          ${auctionData.status}
+    `.trim();
+
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
 }
 
 function getPostUrl() {
@@ -32,7 +89,7 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
-    const baseHtml = (image, buttonText, inputText) => `
+    const baseHtml = (image, buttonText, inputText, message = '') => `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -47,13 +104,13 @@ module.exports = async (req, res) => {
         </head>
         <body>
             <h1>Moxie Auction Frame</h1>
-            <p>Enter a Farcaster name to view auction details.</p>
+            <p>${message}</p>
         </body>
         </html>
     `;
 
     if (req.method === 'GET' || !req.body?.untrustedData?.inputText) {
-        const html = baseHtml(DEFAULT_IMAGE_URL, "View Auction Details", "Enter Farcaster name");
+        const html = baseHtml(DEFAULT_IMAGE_URL, "View Auction Details", "Enter Farcaster name", "Enter a Farcaster name to view auction details.");
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
     }
@@ -63,20 +120,22 @@ module.exports = async (req, res) => {
             const { untrustedData } = req.body;
             const farcasterName = untrustedData.inputText || '';
 
+            if (!farcasterName.trim()) {
+                throw new Error('Farcaster name is required');
+            }
+
             let displayName = 'Default Account';
 
-            if (farcasterName.trim() !== '') {
-                try {
-                    const userData = await getUserDataFromAirstack(farcasterName);
-                    if (userData.data && userData.data.user) {
-                        displayName = userData.data.user.displayName || farcasterName;
-                    } else {
-                        throw new Error('User not found in Airstack response');
-                    }
-                } catch (error) {
-                    console.error('Error fetching user data:', error.message);
-                    displayName = 'Invalid Farcaster name';
+            try {
+                const userData = await getUserDataFromAirstack(farcasterName);
+                if (userData.data && userData.data.User) {
+                    displayName = userData.data.User.displayName || farcasterName;
+                } else {
+                    throw new Error('User not found in Airstack response');
                 }
+            } catch (error) {
+                console.error('Error fetching user data:', error.message);
+                throw new Error(`Failed to fetch user data: ${error.message}`);
             }
 
             // Generate auction data (mocked for this example)
@@ -93,13 +152,14 @@ module.exports = async (req, res) => {
             };
 
             const imageUrl = generateImageUrl(auctionData, displayName);
-            const html = baseHtml(imageUrl, "Check Another Auction", "Enter Farcaster name");
+            const html = baseHtml(imageUrl, "Check Another Auction", "Enter Farcaster name", `Auction details for ${displayName}`);
 
             res.setHeader('Content-Type', 'text/html');
             return res.status(200).send(html);
         } catch (error) {
             console.error('Error processing request:', error);
-            const html = baseHtml(DEFAULT_IMAGE_URL, "Try Again", "Enter Farcaster name");
+            const errorMessage = error.message || 'An unexpected error occurred';
+            const html = baseHtml(DEFAULT_IMAGE_URL, "Try Again", "Enter Farcaster name", `Error: ${errorMessage}`);
             return res.status(200).send(html);
         }
     }
