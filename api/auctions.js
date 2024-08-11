@@ -1,87 +1,7 @@
 const https = require('https');
 
-const AIRSTACK_API_URL = 'https://api.airstack.xyz/graphql';
-const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
-
-function httpsPost(url, data, headers = {}) {
-    return new Promise((resolve, reject) => {
-        const req = https.request(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers,
-            }
-        }, res => {
-            let body = '';
-            res.on('data', chunk => body += chunk);
-            res.on('end', () => {
-                if (res.statusCode === 200) {
-                    try {
-                        const parsedData = JSON.parse(body);
-                        resolve(parsedData);
-                    } catch (error) {
-                        reject(new Error('Failed to parse response from Airstack'));
-                    }
-                } else {
-                    reject(new Error(`HTTP Error ${res.statusCode}: ${body}`));
-                }
-            });
-        });
-
-        req.on('error', reject);
-        req.write(JSON.stringify(data));
-        req.end();
-    });
-}
-
-async function getUserDataFromAirstack(username) {
-    const query = `
-        query GetUserByUsername($username: String!) {
-            User(username: $username) {
-                id
-                username
-                displayName
-            }
-        }
-    `;
-    const variables = { username };
-
-    const headers = {
-        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
-    };
-
-    try {
-        const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
-        return result;
-    } catch (error) {
-        console.error('Error fetching data from Airstack:', error);
-        // Return mock data if Airstack API call fails
-        return {
-            data: {
-                User: {
-                    id: DEFAULT_FID,
-                    username: username,
-                    displayName: username
-                }
-            }
-        };
-    }
-}
-
-function generateImageUrl(auctionData, farcasterName) {
-    const text = `
-Auction for ${farcasterName}
-
-Clearing Price:  ${auctionData.clearingPrice?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
-Auction Start:   ${new Date(parseInt(auctionData.startTime) * 1000).toLocaleString()}
-Auction End:     ${new Date(parseInt(auctionData.endTime) * 1000).toLocaleString()}
-Status:          ${auctionData.status}
-    `.trim();
-
-    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
-}
 
 function getPostUrl() {
     if (process.env.VERCEL_URL) {
@@ -94,6 +14,8 @@ function getPostUrl() {
 
 module.exports = async (req, res) => {
     console.log('Received request method:', req.method);
+    console.log('Request headers:', req.headers);
+    console.log('Request body:', JSON.stringify(req.body));
 
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -104,7 +26,7 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
-    const baseHtml = (image, buttonText, inputText, message = '') => `
+    const baseHtml = (image, buttonText, inputText) => `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -119,55 +41,36 @@ module.exports = async (req, res) => {
         </head>
         <body>
             <h1>Moxie Auction Frame</h1>
-            <p>${message}</p>
         </body>
         </html>
     `;
 
-    if (req.method === 'GET' || !req.body?.untrustedData?.inputText) {
-        const html = baseHtml(DEFAULT_IMAGE_URL, "View Auction Details", "Enter Farcaster name", "Enter a Farcaster name to view auction details.");
+    if (req.method === 'GET') {
+        console.log('Sending initial frame HTML');
+        const html = baseHtml(DEFAULT_IMAGE_URL, "View Auction Details", "Enter Farcaster name");
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
     }
 
     if (req.method === 'POST') {
+        console.log('Processing POST request');
         try {
-            const { untrustedData } = req.body;
-            const farcasterName = untrustedData.inputText || '';
+            const { untrustedData } = req.body || {};
+            const farcasterName = untrustedData?.inputText || 'Unknown User';
+            console.log('Farcaster name:', farcasterName);
 
-            if (!farcasterName.trim()) {
-                throw new Error('Farcaster name is required');
-            }
-
-            const userData = await getUserDataFromAirstack(farcasterName);
-            const displayName = userData.data.User.displayName || farcasterName;
-
-            // Generate auction data (mocked for this example)
-            const auctionData = {
-                auctionId: '1234',
-                auctionSupply: '100',
-                clearingPrice: '50',
-                status: 'active',
-                startTime: '1691607000',
-                endTime: '1691617000',
-                totalOrders: '20',
-                uniqueBidders: '10',
-                totalBidValue: '500',
-            };
-
-            const imageUrl = generateImageUrl(auctionData, displayName);
-            const html = baseHtml(imageUrl, "Check Another Auction", "Enter Farcaster name", `Auction details for ${displayName}`);
-
+            const html = baseHtml(DEFAULT_IMAGE_URL, "Check Another Auction", "Enter Farcaster name");
+            console.log('Sending response HTML');
             res.setHeader('Content-Type', 'text/html');
             return res.status(200).send(html);
         } catch (error) {
-            console.error('Error processing request:', error);
-            const errorMessage = error.message || 'An unexpected error occurred';
-            const html = baseHtml(DEFAULT_IMAGE_URL, "Try Again", "Enter Farcaster name", `Error: ${errorMessage}`);
+            console.error('Error processing POST request:', error);
+            const html = baseHtml(DEFAULT_IMAGE_URL, "Try Again", "Enter Farcaster name");
             return res.status(200).send(html);
         }
     }
 
     // If the method is not supported
+    console.log('Unsupported method:', req.method);
     return res.status(405).send('Method Not Allowed');
 };
