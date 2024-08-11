@@ -132,18 +132,18 @@ async function getMoxieAuctionData(fid) {
     try {
         const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
         console.log('Moxie auction data result:', safeStringify(result));
-        
+
         if (result.errors) {
             throw new Error(`Airstack query error: ${result.errors[0].message}`);
         }
-        
+
         if (!result.data || (!result.data.TokenBalances?.TokenBalance && !result.data.TokenNfts?.TokenNft)) {
             throw new Error('No Moxie auction data found in Airstack response');
         }
-        
+
         const tokenBalance = result.data.TokenBalances?.TokenBalance?.[0];
         const tokenNft = result.data.TokenNfts?.TokenNft?.[0];
-        
+
         return {
             auctionId: fid,
             auctionSupply: tokenBalance?.amount || 'N/A',
