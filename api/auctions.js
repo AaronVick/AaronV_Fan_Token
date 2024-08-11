@@ -111,6 +111,10 @@ module.exports = async (req, res) => {
             `;
         }
 
+        const postUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}/api/auctions`
+            : 'https://aaron-v-fan-token.vercel.app/api/auctions';
+
         const html = `
             <!DOCTYPE html>
             <html lang="en">
@@ -122,7 +126,7 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame:image" content="${generateImageUrl(auctionData, displayName)}">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
                 <meta property="fc:frame:button:1" content="View Auction Details">
-                <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://aaron-v-fan-token.vercel.app'}/api/getAuctionDetails">
+                <meta property="fc:frame:post_url" content="${postUrl}">
             </head>
             <body>
                 <h1>Auction Details for ${displayName}</h1>
@@ -134,7 +138,11 @@ module.exports = async (req, res) => {
         res.setHeader('Content-Type', 'text/html');
         res.status(200).send(html);
     } catch (error) {
-        console.error('Error in getAuctionDetails:', error.message);
+        console.error('Error in auctions:', error.message);
+        const postUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}/api/auctions`
+            : 'https://aaron-v-fan-token.vercel.app/api/auctions';
+
         res.status(500).send(`
             <!DOCTYPE html>
             <html lang="en">
@@ -146,7 +154,7 @@ module.exports = async (req, res) => {
                 <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
                 <meta property="fc:frame:input:text" content="Enter Farcaster name">
                 <meta property="fc:frame:button:1" content="Try Again">
-                <meta property="fc:frame:post_url" content="${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://aaron-v-fan-token.vercel.app'}/api/getAuctionDetails">
+                <meta property="fc:frame:post_url" content="${postUrl}">
             </head>
             <body>
                 <h1>Error</h1>
