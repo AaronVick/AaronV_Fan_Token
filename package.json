@@ -1,11 +1,11 @@
 {
   "name": "moxie-auction",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "main": "api/auctions.js",  // Update to point to the main serverless function file
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/src/index.js",
-    "dev": "ts-node src/index.js"
+    "build": "tsc",  // Compiles TypeScript to JavaScript (ensure that your TypeScript files are set up correctly)
+    "start": "node dist/api/auctions.js",  // Run the transpiled file (if using TypeScript)
+    "dev": "ts-node src/auctions.ts"  // For development, run the TypeScript file directly
   },
   "dependencies": {
     "@airstack/node": "^0.0.5",
