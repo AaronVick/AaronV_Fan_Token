@@ -2,7 +2,7 @@ const url = require('url');
 const https = require('https');
 
 const AIRSTACK_API_URL = 'https://api.airstack.xyz/graphql';
-const DEFAULT_FID = '354795';
+const DEFAULT_FID = '354795'; // Default Farcaster ID
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 
