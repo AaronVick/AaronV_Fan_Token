@@ -1,10 +1,9 @@
 const https = require('https');
-const url = require('url');
 
 const DEFAULT_FID = '354795'; // Default FID
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app'; // Replace with your actual fallback URL
 
-// Helper functions (unchanged)
+// Helper functions
 function httpsGet(url, headers) {
     return new Promise((resolve, reject) => {
         const options = {
@@ -66,13 +65,14 @@ function getPostUrl() {
 module.exports = async (req, res) => {
     console.log('Received request method:', req.method);
 
-    if (req.method === 'GET') {
-        // Temporary GET response for testing
+    // Handle different HTTP methods
+    if (req.method === 'POST') {
+        console.log('Handling POST request');
+    } else if (req.method === 'GET') {
+        console.log('Handling GET request');
         return res.status(200).send('GET method is allowed temporarily for testing');
-    }
-
-    if (req.method !== 'POST') {
-        console.error('Method Not Allowed');
+    } else {
+        console.error('Method Not Allowed:', req.method);
         return res.status(405).send('Method Not Allowed');
     }
 
