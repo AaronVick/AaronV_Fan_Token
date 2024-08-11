@@ -1,26 +1,13 @@
-const https = require('https');
-
-const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
-const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
-
-function getPostUrl() {
-    if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}/api/auctions`;
-    } else if (process.env.CUSTOM_URL) {
-        return `${process.env.CUSTOM_URL}/api/auctions`;
-    }
-    return `${FALLBACK_URL}/api/auctions`;
-}
-
 module.exports = async (req, res) => {
     console.log('Received request method:', req.method);
-    console.log('Request headers:', req.headers);
-    console.log('Request body:', JSON.stringify(req.body));
+    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Request query:', JSON.stringify(req.query, null, 2));
 
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -35,7 +22,7 @@ module.exports = async (req, res) => {
             <title>Moxie Auction Details</title>
             <meta property="fc:frame" content="vNext">
             <meta property="fc:frame:image" content="${image}">
-            <meta property="fc:frame:post_url" content="${getPostUrl()}">
+            <meta property="fc:frame:post_url" content="${req.headers.host}/api/auctions">
             <meta property="fc:frame:button:1" content="${buttonText}">
             ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
         </head>
@@ -45,32 +32,25 @@ module.exports = async (req, res) => {
         </html>
     `;
 
-    if (req.method === 'GET') {
-        console.log('Sending initial frame HTML');
-        const html = baseHtml(DEFAULT_IMAGE_URL, "View Auction Details", "Enter Farcaster name");
+    const defaultImage = 'https://www.aaronvick.com/Moxie/11.JPG';
+
+    try {
+        let html;
+        if (req.method === 'GET' || !req.body) {
+            console.log('Handling as GET request');
+            html = baseHtml(defaultImage, "View Auction Details", "Enter Farcaster name");
+        } else {
+            console.log('Handling as POST request');
+            const farcasterName = req.body.untrustedData?.inputText || 'Unknown User';
+            html = baseHtml(defaultImage, "Check Another Auction", "Enter Farcaster name");
+        }
+
+        console.log('Sending HTML response');
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
+    } catch (error) {
+        console.error('Error processing request:', error);
+        const errorHtml = baseHtml(defaultImage, "Try Again", "Enter Farcaster name");
+        return res.status(200).send(errorHtml);
     }
-
-    if (req.method === 'POST') {
-        console.log('Processing POST request');
-        try {
-            const { untrustedData } = req.body || {};
-            const farcasterName = untrustedData?.inputText || 'Unknown User';
-            console.log('Farcaster name:', farcasterName);
-
-            const html = baseHtml(DEFAULT_IMAGE_URL, "Check Another Auction", "Enter Farcaster name");
-            console.log('Sending response HTML');
-            res.setHeader('Content-Type', 'text/html');
-            return res.status(200).send(html);
-        } catch (error) {
-            console.error('Error processing POST request:', error);
-            const html = baseHtml(DEFAULT_IMAGE_URL, "Try Again", "Enter Farcaster name");
-            return res.status(200).send(html);
-        }
-    }
-
-    // If the method is not supported
-    console.log('Unsupported method:', req.method);
-    return res.status(405).send('Method Not Allowed');
 };
