@@ -74,7 +74,7 @@ module.exports = async (req, res) => {
             <title>Moxie Auction Details</title>
             <meta property="fc:frame" content="vNext">
             <meta property="fc:frame:image" content="${image}">
-            <meta property="fc:frame:post_url" content="${getPostUrl()}/api/auctions">
+            <meta property="fc:frame:post_url" content="${getPostUrl()}">
             <meta property="fc:frame:input:text" content="Enter Farcaster name">
         </head>
         <body>
@@ -83,19 +83,20 @@ module.exports = async (req, res) => {
         </html>
     `;
 
-    if (req.method === 'GET') {
-        const initialHtml = baseHtml(
-            '<h1>Moxie Auction Frame</h1><p>Enter a Farcaster name to view auction details.</p>',
-            'https://www.aaronvick.com/Moxie/11.JPG'
-        );
+    const initialHtml = baseHtml(
+        '<h1>Moxie Auction Frame</h1><p>Enter a Farcaster name to view auction details.</p>',
+        'https://www.aaronvick.com/Moxie/11.JPG'
+    );
+
+    if (req.method === 'GET' || !req.body?.untrustedData?.inputText) {
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(initialHtml);
     }
 
     if (req.method === 'POST') {
         try {
-            const { untrustedData } = req.body || {};
-            const farcasterName = untrustedData?.inputText || '';
+            const { untrustedData } = req.body;
+            const farcasterName = untrustedData.inputText || '';
 
             let fid = DEFAULT_FID;
             let displayName = farcasterName || 'Default Account';
