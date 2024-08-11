@@ -2,7 +2,57 @@ const https = require('https');
 const url = require('url');
 
 const DEFAULT_FID = '354795'; // Default FID
-const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app'; // Replace with your actual Vercel URL
+const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app'; // Replace with your actual fallback URL
+
+// Helper functions (unchanged)
+function httpsGet(url, headers) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            headers: headers,
+        };
+        https.get(url, options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                resolve(data);
+            });
+        }).on('error', (err) => {
+            reject(err);
+        });
+    });
+}
+
+function getAuctionData(fid) {
+    // Simulate fetching auction data based on fid
+    return new Promise((resolve) => {
+        resolve({
+            auctionId: '1234',
+            auctionSupply: '100',
+            clearingPrice: '50',
+            status: 'active',
+            startTime: '1691607000',
+            endTime: '1691617000',
+            totalOrders: '20',
+            uniqueBidders: '10',
+            totalBidValue: '500',
+        });
+    });
+}
+
+function generateImageUrl(auctionData, farcasterName) {
+    const text = `
+Auction for ${farcasterName}
+
+Clearing Price:  ${auctionData.clearingPrice?.padEnd(20)}  Auction Supply:  ${auctionData.auctionSupply}
+Auction Start:   ${new Date(parseInt(auctionData.startTime) * 1000).toLocaleString()}
+Auction End:     ${new Date(parseInt(auctionData.endTime) * 1000).toLocaleString()}
+Status:          ${auctionData.status}
+    `.trim();
+
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=35&weight=bold`;
+}
 
 function getPostUrl() {
     if (process.env.VERCEL_URL) {
@@ -14,11 +64,23 @@ function getPostUrl() {
 }
 
 module.exports = async (req, res) => {
+    console.log('Received request method:', req.method);
+
+    if (req.method === 'GET') {
+        // Temporary GET response for testing
+        return res.status(200).send('GET method is allowed temporarily for testing');
+    }
+
+    if (req.method !== 'POST') {
+        console.error('Method Not Allowed');
+        return res.status(405).send('Method Not Allowed');
+    }
+
     console.log('Received request:', JSON.stringify(req.body));
     console.log('Request headers:', JSON.stringify(req.headers));
     console.log('Environment variables:', {
         VERCEL_URL: process.env.VERCEL_URL,
-        CUSTOM_URL: process.env.CUSTOM_URL
+        CUSTOM_URL: process.env.CUSTOM_URL,
     });
 
     const postUrl = getPostUrl();
@@ -37,7 +99,7 @@ module.exports = async (req, res) => {
             try {
                 const headers = {
                     'API-KEY': process.env.FarQuestAPI,
-                    'accept': 'application/json'
+                    'accept': 'application/json',
                 };
                 const fidData = await httpsGet(`https://build.far.quest/farcaster/v2/user-by-username?username=${farcasterName}`, headers);
                 const fidJson = JSON.parse(fidData);
@@ -69,8 +131,8 @@ module.exports = async (req, res) => {
                     <div>
                         <p>Clearing Price: ${auctionData.clearingPrice || 'N/A'}</p>
                         <p>Auction Supply: ${auctionData.auctionSupply || 'N/A'}</p>
-                        <p>Auction Start: ${auctionData.auctionStart || 'N/A'}</p>
-                        <p>Auction End: ${auctionData.auctionEnd || 'N/A'}</p>
+                        <p>Auction Start: ${auctionData.startTime || 'N/A'}</p>
+                        <p>Auction End: ${auctionData.endTime || 'N/A'}</p>
                     </div>
                     <div>
                         <p>Total Orders: ${auctionData.totalOrders || 'N/A'}</p>
