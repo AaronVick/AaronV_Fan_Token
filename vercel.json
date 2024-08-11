@@ -1,20 +1,11 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.js": {
-      "runtime": "@vercel/node@20.x"
-    }
-  },
-  "routes": [
-    { "src": "/(.*)", "dest": "/api/index.js" }
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "api/auction.js", "use": "@vercel/node" }
   ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Content-Type", "value": "text/html; charset=utf-8" },
-        { "key": "Cache-Control", "value": "no-cache" }
-      ]
-    }
+  "routes": [
+    { "src": "/api/auction", "dest": "/api/auction.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
