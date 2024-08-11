@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
-    const baseHtml = (content, image) => `
+    const baseHtml = (content, image, buttonText, buttonAction = '1') => `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -75,7 +75,9 @@ module.exports = async (req, res) => {
             <meta property="fc:frame" content="vNext">
             <meta property="fc:frame:image" content="${image}">
             <meta property="fc:frame:post_url" content="${getPostUrl()}">
-            <meta property="fc:frame:input:text" content="Enter Farcaster name">
+            <meta property="fc:frame:button:1" content="${buttonText}">
+            <meta property="fc:frame:button:1:action" content="${buttonAction}">
+            ${buttonAction === 'input' ? '<meta property="fc:frame:input:text" content="Enter Farcaster name">' : ''}
         </head>
         <body>
             ${content}
@@ -84,8 +86,10 @@ module.exports = async (req, res) => {
     `;
 
     const initialHtml = baseHtml(
-        '<h1>Moxie Auction Frame</h1><p>Enter a Farcaster name to view auction details.</p>',
-        'https://www.aaronvick.com/Moxie/11.JPG'
+        '<h1>Moxie Auction Frame</h1><p>Click the button to view auction details.</p>',
+        'https://www.aaronvick.com/Moxie/11.JPG',
+        'View Auction Details',
+        'input'
     );
 
     if (req.method === 'GET' || !req.body?.untrustedData?.inputText) {
@@ -139,7 +143,7 @@ module.exports = async (req, res) => {
                 </div>
             `;
 
-            const html = baseHtml(content, generateImageUrl(auctionData, displayName));
+            const html = baseHtml(content, generateImageUrl(auctionData, displayName), 'Check Another Auction', 'input');
 
             res.setHeader('Content-Type', 'text/html');
             return res.status(200).send(html);
@@ -147,7 +151,9 @@ module.exports = async (req, res) => {
             console.error('Error:', error);
             const errorHtml = baseHtml(
                 '<h1>Error</h1><p>Failed to fetch auction data. Please try again.</p>',
-                'https://www.aaronvick.com/Moxie/11.JPG'
+                'https://www.aaronvick.com/Moxie/11.JPG',
+                'Try Again',
+                'input'
             );
             return res.status(200).send(errorHtml);
         }
