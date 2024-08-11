@@ -107,14 +107,16 @@ async function getMoxieAuctionData(fid) {
 
     try {
         const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
-        console.log('Moxie auction data result:', safeStringify(result));
+        console.log('Raw Moxie auction data result:', result);
+        console.log('Stringified Moxie auction data result:', safeStringify(result));
         
         if (result.errors) {
-            throw new Error(result.errors[0].message);
+            throw new Error(`Airstack API errors: ${safeStringify(result.errors)}`);
         }
         
         if (!result.data || !result.data.TokenBalances || !result.data.TokenBalances.TokenBalance) {
-            throw new Error('No Moxie auction data found');
+            console.log('Unexpected Moxie data structure:', safeStringify(result));
+            throw new Error('Unexpected Moxie data structure');
         }
         
         const tokenBalance = result.data.TokenBalances.TokenBalance[0];
@@ -131,6 +133,7 @@ async function getMoxieAuctionData(fid) {
         };
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
+        console.error('Error stack:', error.stack);
         throw error;
     }
 }
@@ -142,11 +145,11 @@ function generateImageUrl(auctionData, farcasterName, errorInfo = null, debugInf
 Error for ${farcasterName}
 
 Error Type: ${errorInfo.type}
-Error Message: ${errorInfo.message}
-Details: ${errorInfo.details || 'No additional details'}
+Error Message: ${errorInfo.message.substring(0, 500)}
+Details: ${(errorInfo.details || 'No additional details').substring(0, 500)}
 
 Debug Info:
-${debugInfo}
+${debugInfo.substring(0, 1000)}
         `.trim();
     } else if (auctionData) {
         text = `
@@ -159,18 +162,20 @@ Status:         ${(auctionData.status || 'N/A').padEnd(20)}
 Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
 
 Debug Info:
-${debugInfo}
+${debugInfo.substring(0, 1000)}
         `.trim();
     } else {
         text = `
 No auction data available for ${farcasterName}
 
 Debug Info:
-${debugInfo}
+${debugInfo.substring(0, 1000)}
         `.trim();
     }
 
-    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=20&weight=bold`;
+    text = text.substring(0, 2000);
+
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=14&weight=bold`;
 }
 
 module.exports = async (req, res) => {
@@ -295,11 +300,12 @@ module.exports = async (req, res) => {
         return res.status(200).send(html);
     } catch (error) {
         logError('Error in main handler', error);
-        debugInfo += `Unexpected error: ${error.message}\n`;
+        debugInfo += `Unexpected error: ${error.toString().substring(0, 500)}\n`;
+        debugInfo += `Stack trace: ${error.stack ? error.stack.substring(0, 500) : 'No stack trace'}\n`;
         const errorImageUrl = generateImageUrl(null, 'Error', {
             type: 'Unexpected Error',
-            message: 'An unexpected error occurred while processing the request.',
-            details: error.message
+            message: error.toString().substring(0, 500),
+            details: error.stack ? error.stack.substring(0, 500) : 'No stack trace'
         }, debugInfo);
         const errorHtml = baseHtml(errorImageUrl, "Try Again", "Enter Farcaster name");
         return res.status(200).send(errorHtml);
