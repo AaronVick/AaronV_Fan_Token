@@ -5,10 +5,6 @@ module.exports = (req, res) => {
   const imageUrl = 'https://www.aaronvick.com/Moxie/11.JPG';
   const postUrl = 'https://aaron-v-fan-token.vercel.app/api/auctions';
 
-  console.log('Request received');
-  console.log('Query:', query);
-  console.log('Image URL:', imageUrl);
-
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -17,14 +13,17 @@ module.exports = (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta property="fc:frame" content="vNext">
   <meta property="fc:frame:image" content="${imageUrl}">
-  <meta property="fc:frame:button:1" content="View Auction Details">
   <meta property="fc:frame:post_url" content="${postUrl}">
+  <meta property="fc:frame:button:1" content="View Auction Details">
+  <meta property="fc:frame:input:text" content="Enter Farcaster name">
 </head>
 <body>
+  <h1>Moxie Auction Frame</h1>
 </body>
 </html>
 `;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.status(200).send(html);
+  res.statusCode = 200;
+  res.end(html);
 };
