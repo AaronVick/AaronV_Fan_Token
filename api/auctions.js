@@ -27,15 +27,17 @@ Airstack Access: ${errorInfo.airstackAccessed ? 'Successful' : 'Failed'}
         text = `
 Auction for ${farcasterName}
 
-Auction ID:     ${(auctionData.auctionId || 'N/A').padEnd(20)}
-Auction Supply: ${(auctionData.auctionSupply || 'N/A').padEnd(20)}
-Clearing Price: ${(auctionData.clearingPrice || 'N/A').padEnd(20)}
-Status:         ${(auctionData.status || 'N/A').padEnd(20)}
-Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
+Auction ID:     ${(auctionData?.auctionId || 'N/A').padEnd(20)}
+Auction Supply: ${(auctionData?.auctionSupply || 'N/A').padEnd(20)}
+Clearing Price: ${(auctionData?.clearingPrice || 'N/A').padEnd(20)}
+Status:         ${(auctionData?.status || 'N/A').padEnd(20)}
+Total Bid Value:${(auctionData?.totalBidValue || 'N/A').padEnd(20)}
         `.trim();
     }
 
-    return auctionData?.tokenImage || `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
+    const imageUrl = auctionData?.tokenImage || `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
+    console.log('Generated Image URL:', imageUrl);
+    return imageUrl;
 }
 
 module.exports = async (req, res) => {
@@ -62,7 +64,7 @@ module.exports = async (req, res) => {
             const imageUrl = image || DEFAULT_IMAGE_URL;
             console.log('Using image URL:', imageUrl);
 
-            return `
+            const html = `
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
@@ -80,6 +82,8 @@ module.exports = async (req, res) => {
                 </body>
                 </html>
             `;
+            console.log('Generated HTML:', html);
+            return html;
         };
 
         let html;
@@ -89,6 +93,7 @@ module.exports = async (req, res) => {
         } else {
             console.log('Handling as POST request');
             const farcasterName = req.body.untrustedData?.inputText || '';
+            console.log('Farcaster name:', farcasterName);
 
             let displayName = 'Unknown User';
             let errorInfo = null;
@@ -98,6 +103,7 @@ module.exports = async (req, res) => {
                 try {
                     const { address } = await getUserWalletAddress(farcasterName);
                     displayName = farcasterName;
+                    console.log('Resolved address:', address);
 
                     auctionData = await getMoxieAuctionData(address);
                     console.log('Processed Moxie auction data:', safeStringify(auctionData));
