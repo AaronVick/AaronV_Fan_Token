@@ -13,9 +13,9 @@ module.exports = (req, res) => {
       <meta property="fc:frame" content="vNext">
       <meta property="fc:frame:image" content="${imageUrl}">
       <meta property="fc:frame:post_url" content="${postUrl}">
+      <meta property="fc:frame:button:1" content="View Auction Details">
     </head>
     <body>
-      <h1>Moxie Auction Frame</h1>
     </body>
     </html>
   `;
