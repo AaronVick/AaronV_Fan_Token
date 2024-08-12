@@ -1,8 +1,12 @@
-module.exports = async (req, res) => {
+const { parse } = require('url');
+
+module.exports = (req, res) => {
+  const { query } = parse(req.url, true);
   const imageUrl = 'https://www.aaronvick.com/Moxie/11.JPG';
   const postUrl = 'https://aaron-v-fan-token.vercel.app/api/auctions';
 
   console.log('Request received');
+  console.log('Query:', query);
   console.log('Image URL:', imageUrl);
 
   const html = `
@@ -17,12 +21,14 @@ module.exports = async (req, res) => {
 </head>
 <body>
   <h1>Moxie Auction Frame</h1>
+  <p>Debug Info: Image URL = ${imageUrl}</p>
 </body>
 </html>
 `;
 
   console.log('Generated HTML:', html);
 
-  res.setHeader('Content-Type', 'text/html');
-  res.status(200).send(html);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.statusCode = 200;
+  res.end(html);
 };
