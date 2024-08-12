@@ -2,6 +2,9 @@ module.exports = async (req, res) => {
   const imageUrl = 'https://www.aaronvick.com/Moxie/11.JPG';
   const postUrl = 'https://aaron-v-fan-token.vercel.app/api/auctions';
 
+  console.log('Request received');
+  console.log('Image URL:', imageUrl);
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -17,6 +20,8 @@ module.exports = async (req, res) => {
 </body>
 </html>
 `;
+
+  console.log('Generated HTML:', html);
 
   res.setHeader('Content-Type', 'text/html');
   res.status(200).send(html);
