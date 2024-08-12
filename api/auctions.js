@@ -201,7 +201,7 @@ Error Type: ${errorInfo.type}
 Error Message: ${errorInfo.message}
 Details: ${errorInfo.details || 'No additional details'}
         `.trim();
-    } else {
+    } else if (auctionData) {
         text = `
 Auction for ${farcasterName}
 
@@ -210,26 +210,24 @@ Auction Supply: ${(auctionData.auctionSupply || 'N/A').padEnd(20)}
 Status:         ${(auctionData.status || 'N/A').padEnd(20)}
 Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
         `.trim();
+    } else {
+        text = `No data for ${farcasterName}`;
     }
 
-    // Always return a valid image URL
-    return auctionData?.tokenImage || DEFAULT_IMAGE_URL;
+    // Use placeholder image with the generated text
+    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}`;
 }
 
-const baseHtml = (image, buttonText, inputText) => {
-    const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || 'aaron-v-fan-token.vercel.app'}`);
-    console.log('Constructed post_url:', postUrl.toString());
-
+function baseHtml(image, buttonText, inputText) {
     return `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Moxie Auction Details</title>
             <meta property="fc:frame" content="vNext">
             <meta property="fc:frame:image" content="${image}">
-            <meta property="fc:frame:post_url" content="${postUrl.toString()}">
+            <meta property="fc:frame:post_url" content="${FALLBACK_URL}/api/auctions">
             <meta property="fc:frame:button:1" content="${buttonText}">
             ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
         </head>
@@ -238,14 +236,13 @@ const baseHtml = (image, buttonText, inputText) => {
         </body>
         </html>
     `;
-};
+}
 
 module.exports = async (req, res) => {
     try {
         console.log('Received request method:', req.method);
         console.log('Request headers:', safeStringify(req.headers));
         console.log('Request body:', safeStringify(req.body));
-        console.log('Request query:', safeStringify(req.query));
 
         // Set CORS headers
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -256,30 +253,35 @@ module.exports = async (req, res) => {
             return res.status(200).end();
         }
 
-        let imageUrl = DEFAULT_IMAGE_URL;
         let html;
+        if (req.method === 'GET') {
+            console.log('Handling GET request');
+            html = baseHtml(DEFAULT_IMAGE_URL, "View Auction Details", "Enter Farcaster name");
+        } else if (req.method === 'POST') {
+            console.log('Handling POST request');
+            const farcasterName = req.body?.untrustedData?.inputText || 'Unknown User';
+            console.log('Farcaster name:', farcasterName);
 
-        if (req.method === 'GET' || !req.body) {
-            html = baseHtml(imageUrl, "View Auction Details", "Enter Farcaster name");
-        } else {
-            const farcasterName = req.body.untrustedData?.inputText || '';
-
-            if (farcasterName.trim() !== '') {
-                try {
-                    const { address } = await getUserWalletAddress(farcasterName);
-                    const auctionData = await getMoxieAuctionData(address);
-                    imageUrl = generateImageUrl(auctionData, farcasterName);
-                } catch (error) {
-                    imageUrl = generateImageUrl(null, farcasterName, {
-                        type: 'User Data Error',
-                        message: error.message,
-                        details: `Error occurred for Farcaster name: ${farcasterName}`,
-                    });
-                }
+            let imageUrl;
+            try {
+                const { address } = await getUserWalletAddress(farcasterName);
+                const auctionData = await getMoxieAuctionData(address);
+                imageUrl = generateImageUrl(auctionData, farcasterName);
+            } catch (error) {
+                console.error('Error processing user data:', error);
+                imageUrl = generateImageUrl(null, farcasterName, {
+                    type: 'User Data Error',
+                    message: error.message,
+                    details: `Error occurred for Farcaster name: ${farcasterName}`,
+                });
             }
+
             html = baseHtml(imageUrl, "Check Another Auction", "Enter Farcaster name");
+        } else {
+            throw new Error(`Unsupported method: ${req.method}`);
         }
 
+        console.log('Sending HTML response');
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
     } catch (error) {
@@ -293,60 +295,5 @@ module.exports = async (req, res) => {
         return res.status(200).send(errorHtml);
     }
 };
-
-module.exports = async (req, res) => {
-    try {
-        console.log('Received request method:', req.method);
-        console.log('Request headers:', safeStringify(req.headers));
-        console.log('Request body:', safeStringify(req.body));
-        console.log('Request query:', safeStringify(req.query));
-
-        // Set CORS headers
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-        if (req.method === 'OPTIONS') {
-            return res.status(200).end();
-        }
-
-        // Use DEFAULT_IMAGE_URL directly for initial GET request
-        let imageUrl = DEFAULT_IMAGE_URL;
-
-        if (req.method === 'GET' || !req.body) {
-            html = baseHtml(imageUrl, "View Auction Details", "Enter Farcaster name");
-        } else {
-            const farcasterName = req.body.untrustedData?.inputText || '';
-
-            if (farcasterName.trim() !== '') {
-                try {
-                    const { address } = await getUserWalletAddress(farcasterName);
-                    const auctionData = await getMoxieAuctionData(address);
-                    imageUrl = generateImageUrl(auctionData, farcasterName);
-                } catch (error) {
-                    imageUrl = generateImageUrl(null, farcasterName, {
-                        type: 'User Data Error',
-                        message: error.message,
-                        details: `Error occurred for Farcaster name: ${farcasterName}`,
-                    });
-                }
-            }
-            html = baseHtml(imageUrl, "Check Another Auction", "Enter Farcaster name");
-        }
-
-        res.setHeader('Content-Type', 'text/html');
-        return res.status(200).send(html);
-    } catch (error) {
-        logError('Error in main handler', error);
-        const errorImageUrl = generateImageUrl(null, 'Error', {
-            type: 'Unexpected Error',
-            message: 'An unexpected error occurred while processing the request.',
-            details: error.message,
-        });
-        const errorHtml = baseHtml(errorImageUrl, "Try Again", "Enter Farcaster name");
-        return res.status(200).send(errorHtml);
-    }
-};
-
 
 
