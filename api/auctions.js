@@ -215,7 +215,7 @@ Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
     return auctionData?.tokenImage || DEFAULT_IMAGE_URL;
 }
 
-const baseHtml = (imageUrl, buttonText, inputText) => {
+const baseHtml = (buttonText, inputText) => {
     const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || FALLBACK_URL}`);
     return `
         <!DOCTYPE html>
@@ -225,7 +225,7 @@ const baseHtml = (imageUrl, buttonText, inputText) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Moxie Auction Details</title>
             <meta property="fc:frame" content="vNext">
-            <meta property="fc:frame:image" content="${imageUrl || DEFAULT_IMAGE_URL}">
+            <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
             <meta property="fc:frame:post_url" content="${postUrl.toString()}">
             <meta property="fc:frame:button:1" content="${buttonText}">
             ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
@@ -236,6 +236,7 @@ const baseHtml = (imageUrl, buttonText, inputText) => {
         </html>
     `;
 };
+
 
 module.exports = async (req, res) => {
     try {
