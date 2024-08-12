@@ -4,11 +4,15 @@
   "main": "api/auctions.js",
   "scripts": {
     "start": "node api/auctions.js",
-    "dev": "node api/auctions.js"
+    "dev": "node api/auctions.js",
+    "build": "echo 'No build step needed'"
   },
   "dependencies": {
     "@airstack/node": "^0.0.5",
     "node-fetch": "^2.6.1",
     "@vercel/node": "^2.9.6"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
