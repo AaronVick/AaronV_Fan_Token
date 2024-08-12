@@ -31,6 +31,7 @@ module.exports = async (req, res) => {
     const postUrl = `https://${host}/api/auctions`;
     const html = generateHtml(imageUrl, buttonText, inputText, postUrl);
 
+    console.log('Sending response with image URL:', imageUrl);
     res.setHeader('Content-Type', 'text/html');
     res.status(200).send(html);
 };
@@ -73,12 +74,12 @@ async function handlePostRequest(farcasterName) {
         }
     } catch (error) {
         console.error('Error in handlePostRequest:', error);
-        throw error; // Re-throw to be caught in the main handler
+        throw error;
     }
 
-    return {
-        imageUrl: generateImageUrl(auctionData, displayName)
-    };
+    const imageUrl = generateImageUrl(auctionData, displayName);
+    console.log('Generated dynamic image URL:', imageUrl);
+    return { imageUrl };
 }
 
 function generateErrorImageUrl(error) {
