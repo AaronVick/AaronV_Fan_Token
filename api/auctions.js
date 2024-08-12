@@ -7,7 +7,205 @@ const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 
-// ... (previous functions remain the same)
+function safeStringify(obj) {
+    try {
+        return JSON.stringify(obj, null, 2);
+    } catch (error) {
+        return `[Error serializing object: ${error.message}]`;
+    }
+}
+
+function logError(message, error) {
+    console.error(`${message}:`);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Stack trace:', error.stack);
+    if (error.cause) {
+        console.error('Error cause:', error.cause);
+    }
+}
+
+function httpsPost(url, data, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const req = https.request(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...headers,
+            }
+        }, res => {
+            let body = '';
+            res.on('data', chunk => body += chunk);
+            res.on('end', () => {
+                if (res.statusCode === 200) {
+                    try {
+                        const parsedData = JSON.parse(body);
+                        resolve(parsedData);
+                    } catch (error) {
+                        reject(new Error(`Failed to parse response from Airstack: ${error.message}`));
+                    }
+                } else {
+                    reject(new Error(`HTTP Error ${res.statusCode}: ${body}`));
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.write(JSON.stringify(data));
+        req.end();
+    });
+}
+
+function resolveFidToBeneficiary(fid) {
+    return moxieResolveData
+        ?.filter((d) => d?.fid === fid && d?.type === "WALLET_ADDRESS")
+        ?.map((d) => d?.address);
+}
+
+async function getUserWalletAddress(usernameOrFid) {
+    // First, check if the input is a numeric FID
+    const fid = parseInt(usernameOrFid);
+    if (!isNaN(fid)) {
+        const beneficiaryAddresses = resolveFidToBeneficiary(fid);
+        if (beneficiaryAddresses && beneficiaryAddresses.length > 0) {
+            return { address: beneficiaryAddresses[0] };
+        }
+    }
+
+    // If not an FID or no address found, proceed with the Airstack API call
+    const query = `
+        query GetUserByUsernameOrFid($identity: Identity!) {
+            Socials(
+                input: {filter: {identity: {_eq: $identity}}, blockchain: farcaster}
+            ) {
+                Social {
+                    userId
+                    userAssociatedAddresses
+                    profileName
+                    profileDisplayName
+                    profileImage
+                    profileBio
+                    profileUrl
+                    farcasterProfile {
+                        followerCount
+                        followingCount
+                    }
+                }
+            }
+        }
+    `;
+    const variables = { identity: usernameOrFid };
+
+    const headers = {
+        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`,
+        'Content-Type': 'application/json',
+    };
+
+    try {
+        const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+        console.log('Airstack user data response:', safeStringify(result));
+
+        if (result.errors) {
+            throw new Error(`Airstack query error: ${result.errors[0].message}`);
+        }
+
+        const user = result.data?.Socials?.Social?.[0];
+        if (!user) {
+            throw new Error(`User ${usernameOrFid} not found in Airstack.`);
+        }
+
+        const address = user.userAssociatedAddresses?.[0];
+
+        if (!address) {
+            throw new Error(`No associated wallet address found for user ${usernameOrFid}`);
+        }
+
+        return { address };
+    } catch (error) {
+        console.error('Error in getUserWalletAddress:', error);
+        throw new Error(`User lookup error: ${error.message}`);
+    }
+}
+
+async function getMoxieAuctionData(address) {
+    const query = `
+        query GetMoxieAuctionData($address: Identity!) {
+            TokenBalances(
+                input: {filter: {owner: {_eq: $address}, tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
+            ) {
+                TokenBalance {
+                    amount
+                    formattedAmount
+                    token {
+                        name
+                        symbol
+                    }
+                }
+            }
+            TokenNfts(
+                input: {filter: {owner: {_eq: $address}, address: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
+            ) {
+                TokenNft {
+                    address
+                    tokenId
+                    contentValue {
+                        image {
+                            original
+                        }
+                    }
+                }
+            }
+        }
+    `;
+    const variables = { address };
+
+    const headers = {
+        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`,
+        'Content-Type': 'application/json',
+    };
+
+    try {
+        console.log('Starting API call...');
+        const startTime = Date.now();
+
+        const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
+
+        const endTime = Date.now();
+        console.log(`API call took ${endTime - startTime} ms`);
+
+        if (result.errors) {
+            console.error('Airstack query error:', result.errors);
+            throw new Error(`Airstack query error: ${result.errors[0].message}`);
+        }
+
+        if (!result.data || (!result.data.TokenBalances?.TokenBalance && !result.data.TokenNfts?.TokenNft)) {
+            console.error('No Moxie auction data found in Airstack response');
+            throw new Error('No Moxie auction data found in Airstack response');
+        }
+
+        const tokenBalance = result.data.TokenBalances?.TokenBalance?.[0];
+        const tokenNft = result.data.TokenNfts?.TokenNft?.[0];
+
+        console.log('Token Balance:', tokenBalance);
+        console.log('Token NFT:', tokenNft);
+
+        return {
+            auctionId: address,
+            auctionSupply: tokenBalance?.amount || 'N/A',
+            clearingPrice: 'N/A',
+            status: tokenBalance?.amount > 0 ? 'Active' : 'Inactive',
+            startTime: 'N/A',
+            endTime: 'N/A',
+            totalOrders: 'N/A',
+            uniqueBidders: 'N/A',
+            totalBidValue: tokenBalance?.formattedAmount || 'N/A',
+            tokenImage: tokenNft?.contentValue?.image?.original || null,
+        };
+    } catch (error) {
+        console.error('Error in getMoxieAuctionData:', error);
+        throw new Error(`Moxie Data Error: ${error.message}`);
+    }
+}
 
 function generateImageUrl(auctionData, farcasterName, errorInfo = null) {
     let text;
@@ -35,9 +233,7 @@ Total Bid Value:${(auctionData?.totalBidValue || 'N/A').padEnd(20)}
         `.trim();
     }
 
-    const imageUrl = auctionData?.tokenImage || `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
-    console.log('Generated Image URL:', imageUrl);
-    return imageUrl;
+    return auctionData?.tokenImage || `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
 }
 
 module.exports = async (req, res) => {
@@ -64,7 +260,7 @@ module.exports = async (req, res) => {
             const imageUrl = image || DEFAULT_IMAGE_URL;
             console.log('Using image URL:', imageUrl);
 
-            const html = `
+            return `
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
@@ -82,8 +278,6 @@ module.exports = async (req, res) => {
                 </body>
                 </html>
             `;
-            console.log('Generated HTML:', html);
-            return html;
         };
 
         let html;
@@ -93,7 +287,6 @@ module.exports = async (req, res) => {
         } else {
             console.log('Handling as POST request');
             const farcasterName = req.body.untrustedData?.inputText || '';
-            console.log('Farcaster name:', farcasterName);
 
             let displayName = 'Unknown User';
             let errorInfo = null;
@@ -103,7 +296,6 @@ module.exports = async (req, res) => {
                 try {
                     const { address } = await getUserWalletAddress(farcasterName);
                     displayName = farcasterName;
-                    console.log('Resolved address:', address);
 
                     auctionData = await getMoxieAuctionData(address);
                     console.log('Processed Moxie auction data:', safeStringify(auctionData));
