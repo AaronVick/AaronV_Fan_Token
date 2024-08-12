@@ -223,7 +223,6 @@ const baseHtml = (buttonText, inputText) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Moxie Auction Details</title>
             <meta property="fc:frame" content="vNext">
             <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
             <meta property="fc:frame:post_url" content="${postUrl.toString()}">
@@ -231,11 +230,11 @@ const baseHtml = (buttonText, inputText) => {
             ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
         </head>
         <body>
-            <h1>Moxie Auction Frame</h1>
         </body>
         </html>
     `;
 };
+
 
 
 module.exports = async (req, res) => {
