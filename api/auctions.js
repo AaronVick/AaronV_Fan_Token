@@ -249,9 +249,6 @@ module.exports = async (req, res) => {
                     <meta property="fc:frame" content="vNext">
                     <meta property="fc:frame:image" content="${image}">
                     <meta property="fc:frame:post_url" content="${postUrl.toString()}">
-                    <metaHere’s the rest of your `auctions.js` module:
-
-```javascript
                     <meta property="fc:frame:button:1" content="${buttonText}">
                     ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
                 </head>
@@ -318,6 +315,9 @@ module.exports = async (req, res) => {
         return res.status(200).send(errorHtml);
     }
 };
+
+
+
 
 /* const url = require('url');
 const https = require('https');
@@ -667,5 +667,7 @@ module.exports = async (req, res) => {
         return res.status(200).send(errorHtml);
     }
 };
+
+*/
 
 
