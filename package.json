@@ -1,18 +1,16 @@
 {
   "name": "moxie-auction",
   "version": "1.0.0",
-  "main": "api/auctions.js",
+  "private": true,
   "scripts": {
-    "start": "node api/auctions.js",
-    "dev": "node api/auctions.js",
-    "build": "node api/auctions.js"
+    "start": "vercel dev",
+    "deploy": "vercel deploy --prod"
   },
   "dependencies": {
     "@airstack/node": "^0.0.5",
-    "node-fetch": "^2.6.1",
-    "@vercel/node": "^2.9.6"
+    "node-fetch": "^2.6.1"
   },
-  "engines": {
-    "node": ">=14.0.0"
+  "devDependencies": {
+    "vercel": "latest"
   }
 }
