@@ -215,7 +215,7 @@ Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
     return auctionData?.tokenImage || DEFAULT_IMAGE_URL;
 }
 
-const baseHtml = (buttonText, inputText) => {
+const baseHtml = (image, buttonText, inputText) => {
     const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || FALLBACK_URL}`);
     return `
         <!DOCTYPE html>
@@ -224,16 +224,26 @@ const baseHtml = (buttonText, inputText) => {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta property="fc:frame" content="vNext">
-            <meta property="fc:frame:image" content="https://www.aaronvick.com/Moxie/11.JPG">
+            <meta property="fc:frame:image" content="${image || 'https://www.aaronvick.com/Moxie/11.JPG'}">
             <meta property="fc:frame:post_url" content="${postUrl.toString()}">
             <meta property="fc:frame:button:1" content="${buttonText}">
             ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
         </head>
         <body>
+            <h1>Moxie Auction Frame</h1>
         </body>
         </html>
     `;
 };
+
+let html;
+if (req.method === 'GET' || !req.body) {
+    console.log('Handling as GET request');
+    html = baseHtml('https://www.aaronvick.com/Moxie/11.JPG', "View Auction Details", "Enter Farcaster name");
+} else {
+    // Existing POST logic
+}
+
 
 
 
