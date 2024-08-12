@@ -235,30 +235,30 @@ module.exports = async (req, res) => {
             return res.status(200).end();
         }
 
-        const baseHtml = (image, buttonText, inputText) => {
-            const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || 'aaron-v-fan-token.vercel.app'}`);
-            console.log('Constructed post_url:', postUrl.toString());
+       const baseHtml = (imageUrl, buttonText, inputText) => {
+        const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || FALLBACK_URL}`);
+        console.log('Constructed post_url:', postUrl.toString());
+    
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Moxie Auction Details</title>
+                <meta property="fc:frame" content="vNext">
+                <meta property="fc:frame:image" content="${imageUrl || DEFAULT_IMAGE_URL}">
+                <meta property="fc:frame:post_url" content="${postUrl.toString()}">
+                <meta property="fc:frame:button:1" content="${buttonText}">
+                ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
+            </head>
+            <body>
+                <h1>Moxie Auction Frame</h1>
+            </body>
+            </html>
+        `;
+    };
 
-            return `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Moxie Auction Details</title>
-                    <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="${imageUrl}">
-                    <meta property="fc:frame:input:text" content="Enter Farcaster name">
-                    <meta property="fc:frame:button:1" content="View">
-                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
-                </head>
-                <body>
-                    <h1>Auction Details for ${displayName}</h1>
-                    <img src="${imageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
-                </body>
-                </html>
-            `;
-        };
 
         let html;
         if (req.method === 'GET' || !req.body) {
