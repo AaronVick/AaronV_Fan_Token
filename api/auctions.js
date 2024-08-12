@@ -247,13 +247,14 @@ module.exports = async (req, res) => {
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Moxie Auction Details</title>
                     <meta property="fc:frame" content="vNext">
-                    <meta property="fc:frame:image" content="${image}">
-                    <meta property="fc:frame:post_url" content="${postUrl.toString()}">
-                    <meta property="fc:frame:button:1" content="${buttonText}">
-                    ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
+                    <meta property="fc:frame:image" content="${imageUrl}">
+                    <meta property="fc:frame:input:text" content="Enter Farcaster name">
+                    <meta property="fc:frame:button:1" content="View">
+                    <meta property="fc:frame:post_url" content="https://aaron-v-fan-token.vercel.app/api/getAuctionDetails">
                 </head>
                 <body>
-                    <h1>Moxie Auction Frame</h1>
+                    <h1>Auction Details for ${displayName}</h1>
+                    <img src="${imageUrl}" alt="Auction Details" style="max-width: 100%; height: auto;">
                 </body>
                 </html>
             `;
