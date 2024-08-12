@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "echo 'No build step required' && exit 0",
-    "start": "vercel dev",
+    "build": "echo 'Build step completed'",
+    "start": "node api/auctions.js",
+    "dev": "vercel dev",
     "deploy": "vercel deploy --prod"
   },
   "dependencies": {
