@@ -55,9 +55,9 @@ function httpsPost(url, data, headers = {}) {
     });
 }
 
-async function getUserDataFromAirstack(username) {
+async function getUserWalletAddress(usernameOrFid) {
     const query = `
-        query GetUserByUsername($identity: Identity!) {
+        query GetUserByUsernameOrFid($identity: Identity!) {
             Socials(
                 input: {filter: {identity: {_eq: $identity}}, blockchain: farcaster}
             ) {
@@ -77,23 +77,40 @@ async function getUserDataFromAirstack(username) {
             }
         }
     `;
-    const variables = { identity: username };
+    const variables = { identity: usernameOrFid };
 
     const headers = {
-        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
+        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`,
+        'Content-Type': 'application/json',
     };
 
     try {
         const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
         console.log('Airstack user data response:', safeStringify(result));
-        return result;
+
+        if (result.errors) {
+            throw new Error(`Airstack query error: ${result.errors[0].message}`);
+        }
+
+        const user = result.data?.Socials?.Social?.[0];
+        if (!user) {
+            throw new Error(`User ${usernameOrFid} not found in Airstack.`);
+        }
+
+        const address = user.userAssociatedAddresses?.[0]; // Assuming the first associated address is the one you want
+
+        if (!address) {
+            throw new Error(`No associated wallet address found for user ${usernameOrFid}`);
+        }
+
+        return { address };
     } catch (error) {
-        console.error('Error in getUserDataFromAirstack:', error);
-        throw new Error(`Airstack API Error: ${error.message}`);
+        console.error('Error in getUserWalletAddress:', error);
+        throw new Error(`User lookup error: ${error.message}`);
     }
 }
 
-async function getMoxieAuctionData(fid) {
+async function getMoxieAuctionData(address) {
     const query = `
         query GetMoxieAuctionData($address: Identity!) {
             TokenBalances(
@@ -109,7 +126,7 @@ async function getMoxieAuctionData(fid) {
                 }
             }
             TokenNfts(
-                input: {filter: {owner: {_eq: $address}, tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
+                input: {filter: {owner: {_eq: $address}, address: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
             ) {
                 TokenNft {
                     address
@@ -123,7 +140,7 @@ async function getMoxieAuctionData(fid) {
             }
         }
     `;
-    const variables = { address: `fc_fid:${fid}` };
+    const variables = { address };
 
     const headers = {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`,
@@ -133,9 +150,9 @@ async function getMoxieAuctionData(fid) {
     try {
         console.log('Starting API call...');
         const startTime = Date.now();
-        
+
         const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
-        
+
         const endTime = Date.now();
         console.log(`API call took ${endTime - startTime} ms`);
 
@@ -156,7 +173,7 @@ async function getMoxieAuctionData(fid) {
         console.log('Token NFT:', tokenNft);
 
         return {
-            auctionId: fid,
+            auctionId: address,
             auctionSupply: tokenBalance?.amount || 'N/A',
             clearingPrice: 'N/A',
             status: tokenBalance?.amount > 0 ? 'Active' : 'Inactive',
@@ -249,63 +266,37 @@ module.exports = async (req, res) => {
         } else {
             console.log('Handling as POST request');
             const farcasterName = req.body.untrustedData?.inputText || '';
-            
-            let fid = DEFAULT_FID;
+
             let displayName = 'Unknown User';
             let errorInfo = null;
             let auctionData = null;
 
             if (farcasterName.trim() !== '') {
                 try {
-                    const userData = await getUserDataFromAirstack(farcasterName);
-                    console.log('Airstack user data:', safeStringify(userData));
-                    
-                    if (userData.data && userData.data.Socials && userData.data.Socials.Social && userData.data.Socials.Social.length > 0) {
-                        const user = userData.data.Socials.Social[0];
-                        fid = user.userId;
-                        displayName = user.profileDisplayName || user.profileName || farcasterName;
-                    } else {
-                        console.log('User not found in Airstack');
-                        errorInfo = {
-                            type: 'User Not Found',
-                            message: 'The specified Farcaster name was not found in Airstack.',
-                            details: `Searched for: ${farcasterName}`,
-                            queryExecuted: true,
-                            airstackAccessed: true
-                        };
-                    }
-                } catch (error) {
-                    console.error('Error fetching user data from Airstack:', error);
-                    errorInfo = {
-                        type: 'Airstack API Error',
-                        message: 'Failed to fetch user data from Airstack.',
-                        details: error.message,
-                        queryExecuted: true,
-                        airstackAccessed: false
-                    };
-                }
-            }
+                    const { address } = await getUserWalletAddress(farcasterName);
+                    displayName = farcasterName;
 
-            if (!errorInfo) {
-                try {
-                    auctionData = await getMoxieAuctionData(fid);
+                    auctionData = await getMoxieAuctionData(address);
                     console.log('Processed Moxie auction data:', safeStringify(auctionData));
                 } catch (error) {
-                    console.error('Error fetching Moxie auction data:', error);
+                    console.error('Error processing user data:', error);
                     errorInfo = {
-                        type: 'Moxie Data Error',
-                        message: 'Failed to fetch or process Moxie auction data.',
-                        details: error.message,
+                        type: 'User Data Error',
+                        message: error.message,
+                        details: `Error occurred for Farcaster name: ${farcasterName}`,
                         queryExecuted: true,
                         airstackAccessed: true
                     };
                 }
             }
 
-            const dynamicImageUrl = generateImageUrl(auctionData, displayName, errorInfo);
-            console.log('Generated dynamic image URL:', dynamicImageUrl);
-
-            html = baseHtml(dynamicImageUrl, "Check Another Auction", "Enter Farcaster name");
+            if (errorInfo) {
+                const dynamicImageUrl = generateImageUrl(null, displayName, errorInfo);
+                html = baseHtml(dynamicImageUrl, "Try Again", "Enter Farcaster name");
+            } else {
+                const dynamicImageUrl = generateImageUrl(auctionData, displayName, null);
+                html = baseHtml(dynamicImageUrl, "Check Another Auction", "Enter Farcaster name");
+            }
         }
 
         console.log('Sending HTML response');
