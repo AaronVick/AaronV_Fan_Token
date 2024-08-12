@@ -6,6 +6,7 @@ const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
 
+
 function safeStringify(obj) {
     try {
         return JSON.stringify(obj, null, 2);
@@ -211,12 +212,14 @@ Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
         `.trim();
     }
 
-    // Ensure that the image URL is correctly set or falls back to DEFAULT_IMAGE_URL
+    // Always return a valid image URL
     return auctionData?.tokenImage || DEFAULT_IMAGE_URL;
 }
 
 const baseHtml = (image, buttonText, inputText) => {
-    const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || FALLBACK_URL}`);
+    // Ensure image is always set to a valid URL
+    const imageUrl = image || DEFAULT_IMAGE_URL;
+    const postUrl = new url.URL('/api/auctions', FALLBACK_URL);
     return `
         <!DOCTYPE html>
         <html lang="en">
@@ -224,7 +227,7 @@ const baseHtml = (image, buttonText, inputText) => {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta property="fc:frame" content="vNext">
-            <meta property="fc:frame:image" content="${image || 'https://www.aaronvick.com/Moxie/11.JPG'}">
+            <meta property="fc:frame:image" content="${imageUrl}">
             <meta property="fc:frame:post_url" content="${postUrl.toString()}">
             <meta property="fc:frame:button:1" content="${buttonText}">
             ${inputText ? `<meta property="fc:frame:input:text" content="${inputText}">` : ''}
@@ -236,16 +239,59 @@ const baseHtml = (image, buttonText, inputText) => {
     `;
 };
 
-let html;
-if (req.method === 'GET' || !req.body) {
-    console.log('Handling as GET request');
-    html = baseHtml('https://www.aaronvick.com/Moxie/11.JPG', "View Auction Details", "Enter Farcaster name");
-} else {
-    // Existing POST logic
-}
+module.exports = async (req, res) => {
+    try {
+        console.log('Received request method:', req.method);
+        console.log('Request headers:', safeStringify(req.headers));
+        console.log('Request body:', safeStringify(req.body));
+        console.log('Request query:', safeStringify(req.query));
 
+        // Set CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
+        }
 
+        let imageUrl = DEFAULT_IMAGE_URL;
+        let html;
+
+        if (req.method === 'GET' || !req.body) {
+            html = baseHtml(imageUrl, "View Auction Details", "Enter Farcaster name");
+        } else {
+            const farcasterName = req.body.untrustedData?.inputText || '';
+
+            if (farcasterName.trim() !== '') {
+                try {
+                    const { address } = await getUserWalletAddress(farcasterName);
+                    const auctionData = await getMoxieAuctionData(address);
+                    imageUrl = generateImageUrl(auctionData, farcasterName);
+                } catch (error) {
+                    imageUrl = generateImageUrl(null, farcasterName, {
+                        type: 'User Data Error',
+                        message: error.message,
+                        details: `Error occurred for Farcaster name: ${farcasterName}`,
+                    });
+                }
+            }
+            html = baseHtml(imageUrl, "Check Another Auction", "Enter Farcaster name");
+        }
+
+        res.setHeader('Content-Type', 'text/html');
+        return res.status(200).send(html);
+    } catch (error) {
+        logError('Error in main handler', error);
+        const errorImageUrl = generateImageUrl(null, 'Error', {
+            type: 'Unexpected Error',
+            message: 'An unexpected error occurred while processing the request.',
+            details: error.message,
+        });
+        const errorHtml = baseHtml(errorImageUrl, "Try Again", "Enter Farcaster name");
+        return res.status(200).send(errorHtml);
+    }
+};
 
 module.exports = async (req, res) => {
     try {
