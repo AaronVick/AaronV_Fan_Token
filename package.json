@@ -1,4 +1,14 @@
-"scripts": {
-  "start": "node api/auctions.js",
-  "build": "echo 'No build step needed for JavaScript project'"
+{
+  "name": "moxie-auction",
+  "version": "1.0.0",
+  "main": "api/auctions.js",
+  "scripts": {
+    "start": "node api/auctions.js",
+    "dev": "node api/auctions.js"
+  },
+  "dependencies": {
+    "@airstack/node": "^0.0.5",
+    "node-fetch": "^2.6.1",
+    "@vercel/node": "^2.9.6"
+  }
 }
