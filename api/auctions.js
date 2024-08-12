@@ -217,8 +217,6 @@ Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
 
 const baseHtml = (imageUrl, buttonText, inputText) => {
     const postUrl = new url.URL('/api/auctions', `https://${req.headers.host || FALLBACK_URL}`);
-    console.log('Constructed post_url:', postUrl.toString());
-
     return `
         <!DOCTYPE html>
         <html lang="en">
@@ -255,39 +253,30 @@ module.exports = async (req, res) => {
             return res.status(200).end();
         }
 
+        // Use DEFAULT_IMAGE_URL directly for initial GET request
         let imageUrl = DEFAULT_IMAGE_URL;
-        let displayName = 'Unknown User';
-        let errorInfo = null;
 
         if (req.method === 'GET' || !req.body) {
-            console.log('Handling as GET request');
             html = baseHtml(imageUrl, "View Auction Details", "Enter Farcaster name");
         } else {
-            console.log('Handling as POST request');
             const farcasterName = req.body.untrustedData?.inputText || '';
 
             if (farcasterName.trim() !== '') {
                 try {
                     const { address } = await getUserWalletAddress(farcasterName);
-                    displayName = farcasterName;
                     const auctionData = await getMoxieAuctionData(address);
-                    imageUrl = generateImageUrl(auctionData, displayName);
-                    console.log('Processed Moxie auction data:', safeStringify(auctionData));
+                    imageUrl = generateImageUrl(auctionData, farcasterName);
                 } catch (error) {
-                    console.error('Error processing user data:', error);
-                    errorInfo = {
+                    imageUrl = generateImageUrl(null, farcasterName, {
                         type: 'User Data Error',
                         message: error.message,
                         details: `Error occurred for Farcaster name: ${farcasterName}`,
-                    };
-                    imageUrl = generateImageUrl(null, displayName, errorInfo);
+                    });
                 }
             }
-
             html = baseHtml(imageUrl, "Check Another Auction", "Enter Farcaster name");
         }
 
-        console.log('Sending HTML response');
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
     } catch (error) {
@@ -301,4 +290,5 @@ module.exports = async (req, res) => {
         return res.status(200).send(errorHtml);
     }
 };
+
 
