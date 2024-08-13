@@ -1,10 +1,18 @@
 const url = require('url');
 const https = require('https');
+const fs = require('fs').promises;
+const path = require('path');
 
 const AIRSTACK_API_URL = 'https://api.airstack.xyz/graphql';
 const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
+
+async function readMoxieResolveData() {
+    const filePath = path.join(process.cwd(), 'api', 'moxie_resolve.json');
+    const data = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(data);
+}
 
 module.exports = async (req, res) => {
     console.log('Received request method:', req.method);
@@ -14,13 +22,13 @@ module.exports = async (req, res) => {
     const host = req.headers.host || FALLBACK_URL;
     let imageUrl = DEFAULT_IMAGE_URL;
     let buttonText = "View Auction Details";
-    let inputText = "Enter Farcaster name";
+    let inputText = "Enter Farcaster name or FID";
 
-    if (req.method === 'POST' && req.body?.untrustedData?.inputText) {
-        console.log('Handling POST request with input:', req.body.untrustedData.inputText);
+    if (req.method === 'POST') {
+        console.log('Handling POST request');
         try {
-            const result = await handlePostRequest(req.body.untrustedData.inputText);
-            console.log('POST request result:', result);
+            const input = req.body?.untrustedData?.inputText || '';
+            const result = await handlePostRequest(input);
             imageUrl = result.imageUrl;
             buttonText = "Check Another Auction";
         } catch (error) {
@@ -28,15 +36,12 @@ module.exports = async (req, res) => {
             imageUrl = generateErrorImageUrl(error);
             buttonText = "Try Again";
         }
-    } else {
-        console.log('Handling non-POST request or request without input');
     }
 
     const postUrl = `https://${host}/api/auctions`;
     console.log('Final image URL before generating HTML:', imageUrl);
     const html = generateHtml(imageUrl, buttonText, inputText, postUrl);
 
-    console.log('Sending response with image URL:', imageUrl);
     res.setHeader('Content-Type', 'text/html');
     res.status(200).send(html);
 };
@@ -62,45 +67,42 @@ function generateHtml(imageUrl, buttonText, inputText, postUrl) {
     `;
 }
 
-async function handlePostRequest(farcasterName) {
-    console.log('Handling post request for Farcaster name:', farcasterName);
-    let fid = DEFAULT_FID;
-    let displayName = 'Unknown User';
-    let auctionData = null;
+async function handlePostRequest(input) {
+    console.log('Handling post request with input:', input);
+    const moxieResolveData = await readMoxieResolveData();
+    let address;
 
-    try {
-        const userData = await getUserDataFromAirstack(farcasterName);
-        console.log('User data from Airstack:', safeStringify(userData));
-        if (userData.data?.Socials?.Social?.[0]) {
-            const user = userData.data.Socials.Social[0];
-            fid = user.userId;
-            displayName = user.username || farcasterName;
-            console.log('Fetching Moxie auction data for FID:', fid);
-            auctionData = await getMoxieAuctionData(fid);
-            console.log('Moxie auction data:', safeStringify(auctionData));
-        } else {
-            throw new Error('User not found in Airstack');
-        }
-    } catch (error) {
-        console.error('Error in handlePostRequest:', error);
-        throw error;
+    if (input.trim() === '') {
+        // Use default FID
+        address = moxieResolveData.find(item => item.fid === parseInt(DEFAULT_FID))?.address;
+    } else {
+        // Search by profileName or FID
+        const searchItem = moxieResolveData.find(item => 
+            item.profileName === input || item.fid === parseInt(input)
+        );
+        address = searchItem?.address;
     }
 
-    const imageUrl = generateImageUrl(auctionData, displayName);
-    console.log('Generated dynamic image URL:', imageUrl);
-    return { imageUrl };
+    if (!address) {
+        return { imageUrl: generateProfileNotFoundImage() };
+    }
+
+    try {
+        const auctionData = await getMoxieAuctionData(address);
+        return { imageUrl: generateAuctionImageUrl(auctionData, input || 'Default User') };
+    } catch (error) {
+        console.error('Error fetching Moxie auction data:', error);
+        return { imageUrl: generateErrorImageUrl(error) };
+    }
+}
+
+function generateProfileNotFoundImage() {
+    return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent('No Profile Found')}`;
 }
 
 function generateErrorImageUrl(error) {
-    const errorText = `
-Error occurred
-
-Type: ${error.name}
-Message: ${error.message}
-Details: ${error.details || 'No additional details'}
-    `.trim();
-
-    return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent(errorText)}&font=monospace&size=20&weight=bold`;
+    const errorText = `Error: ${error.message}`;
+    return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent(errorText)}`;
 }
 
 function safeStringify(obj) {
@@ -108,16 +110,6 @@ function safeStringify(obj) {
         return JSON.stringify(obj, null, 2);
     } catch (error) {
         return `[Error serializing object: ${error.message}]`;
-    }
-}
-
-function logError(message, error) {
-    console.error(`${message}:`);
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Stack trace:', error.stack);
-    if (error.cause) {
-        console.error('Error cause:', error.cause);
     }
 }
 
@@ -152,39 +144,7 @@ function httpsPost(url, data, headers = {}) {
     });
 }
 
-async function getUserDataFromAirstack(username) {
-    const query = `
-        query GetUserByUsername($identity: Identity!) {
-            Socials(
-                input: {filter: {identity: {_eq: $identity}}, blockchain: ethereum}
-            ) {
-                Social {
-                    userId
-                    userAssociatedAddresses
-                    userHomeURL
-                    dappName
-                    dappSlug
-                    blockchain
-                    username
-                }
-            }
-        }
-    `;
-    const variables = { identity: username };
-
-    const headers = {
-        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
-    };
-
-    try {
-        return await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
-    } catch (error) {
-        logError('Error fetching user data from Airstack', error);
-        throw error;
-    }
-}
-
-async function getMoxieAuctionData(fid) {
+async function getMoxieAuctionData(address) {
     const query = `
         query GetMoxieAuctionData($identity: Identity!) {
             TokenBalances(
@@ -213,7 +173,7 @@ async function getMoxieAuctionData(fid) {
             }
         }
     `;
-    const variables = { identity: `fc_fid:${fid}` };
+    const variables = { identity: address };
 
     const headers = {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
@@ -234,28 +194,28 @@ async function getMoxieAuctionData(fid) {
         const tokenBalance = result.data.TokenBalances.TokenBalance[0];
         const tokenNft = result.data.TokenNfts.TokenNft[0];
         return {
-            auctionId: fid,
+            auctionId: address,
             auctionSupply: tokenBalance.amount || 'N/A',
             tokenImage: tokenNft?.contentValue?.image?.original || DEFAULT_IMAGE_URL,
             totalBidValue: tokenBalance.formattedAmount || 'N/A',
         };
     } catch (error) {
-        logError('Error in getMoxieAuctionData', error);
+        console.error('Error in getMoxieAuctionData:', error);
         throw error;
     }
 }
 
-function generateImageUrl(auctionData, farcasterName) {
-    console.log('Generating image URL for:', farcasterName, 'with data:', safeStringify(auctionData));
+function generateAuctionImageUrl(auctionData, profileName) {
+    console.log('Generating auction image URL for:', profileName, 'with data:', safeStringify(auctionData));
     const text = `
-Auction for ${farcasterName}
+Auction for ${profileName}
 
-Auction ID:     ${(auctionData.auctionId || 'N/A').padEnd(20)}
+Auction ID:     ${(auctionData.auctionId || 'N/A').slice(0, 10)}...
 Auction Supply: ${(auctionData.auctionSupply || 'N/A').padEnd(20)}
 Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
     `.trim();
 
     const imageUrl = `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
-    console.log('Generated image URL:', imageUrl);
+    console.log('Generated auction image URL:', imageUrl);
     return imageUrl;
 }
