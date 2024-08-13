@@ -160,7 +160,7 @@ async function getMoxieAuctionData(address) {
                 }
             }
             TokenNfts(
-                input: {filter: {owner: {_eq: $identity}, address: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
+                input: {filter: {tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
             ) {
                 TokenNft {
                     tokenId
@@ -195,9 +195,9 @@ async function getMoxieAuctionData(address) {
         const tokenNft = result.data.TokenNfts.TokenNft[0];
         return {
             auctionId: address,
-            auctionSupply: tokenBalance.amount || 'N/A',
+            auctionSupply: tokenBalance?.amount || 'N/A',
             tokenImage: tokenNft?.contentValue?.image?.original || DEFAULT_IMAGE_URL,
-            totalBidValue: tokenBalance.formattedAmount || 'N/A',
+            totalBidValue: tokenBalance?.formattedAmount || 'N/A',
         };
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
