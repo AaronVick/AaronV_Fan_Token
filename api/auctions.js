@@ -1,9 +1,8 @@
 const url = require('url');
-const https = require('https');
 const fs = require('fs').promises;
 const path = require('path');
+const { fetchQuery } = require('@airstack/node');
 
-const AIRSTACK_API_URL = 'https://api.airstack.xyz/graphql';
 const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
@@ -82,12 +81,12 @@ async function handlePostRequest(input) {
         );
     }
 
-    if (!userData || !userData.address) {
+    if (!userData) {
         return { imageUrl: generateProfileNotFoundImage(input) };
     }
 
     try {
-        const auctionData = await getMoxieAuctionData(userData.address);
+        const auctionData = await getMoxieAuctionData(userData.fid);
         return { imageUrl: generateAuctionImageUrl(auctionData, userData.profileName || 'Unknown User') };
     } catch (error) {
         console.error('Error fetching Moxie auction data:', error);
@@ -105,9 +104,9 @@ function generateErrorImageUrl(error, userData) {
 Error: ${error.message}
 
 Moxie Resolve Data:
-FID: ${userData.fid || 'N/A'}
-Profile Name: ${userData.profileName || 'N/A'}
-Address: ${userData.address || 'N/A'}
+FID: ${userData?.fid || 'N/A'}
+Profile Name: ${userData?.profileName || 'N/A'}
+Address: ${userData?.address || 'N/A'}
     `.trim();
 
     return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent(errorText)}&font=monospace&size=18&weight=bold`;
@@ -121,78 +120,46 @@ function safeStringify(obj) {
     }
 }
 
-function httpsPost(url, data, headers = {}) {
-    return new Promise((resolve, reject) => {
-        const req = https.request(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers,
-            }
-        }, res => {
-            let body = '';
-            res.on('data', chunk => body += chunk);
-            res.on('end', () => {
-                if (res.statusCode === 200) {
-                    try {
-                        const parsedData = JSON.parse(body);
-                        resolve(parsedData);
-                    } catch (error) {
-                        reject(new Error('Failed to parse response from Airstack'));
-                    }
-                } else {
-                    reject(new Error(`HTTP Error ${res.statusCode}: ${body}`));
-                }
-            });
-        });
-
-        req.on('error', reject);
-        req.write(JSON.stringify(data));
-        req.end();
-    });
-}
-
-async function getMoxieAuctionData(address) {
+async function getMoxieAuctionData(fid) {
     const query = `
-        query GetMoxieAndAuctionData($address: Address!) {
-            FarcasterFanTokenAuctions(
-                input: {filter: {subjectAddress: {_eq: $address}}, blockchain: ALL, limit: 1}
-            ) {
-                FarcasterFanTokenAuction {
-                    auctionId
-                    auctionSupply
-                    decimals
-                    entityId
-                    entityName
-                    entitySymbol
-                    estimatedEndTimestamp
-                    estimatedStartTimestamp
-                    minBiddingAmount
-                    minPriceInMoxie
-                    status
-                }
+    query GetFanTokenDataByFid($fid: String!) {
+        FarcasterFanTokenAuctions(
+            input: {filter: {entityId: {_eq: $fid}, entityType: {_in: [USER, CHANNEL]}}, blockchain: ALL, limit: 1}
+        ) {
+            FarcasterFanTokenAuction {
+                auctionId
+                auctionSupply
+                decimals
+                entityId
+                entityName
+                entitySymbol
+                estimatedEndTimestamp
+                estimatedStartTimestamp
+                minBiddingAmount
+                minPriceInMoxie
+                subjectAddress
+                status
             }
         }
+        FarcasterMoxieClaimDetails(input: {filter: {}, blockchain: ALL})
+    }
     `;
-    const variables = { address: address };
-
-    const headers = {
-        'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
-    };
+    
+    const variables = { fid: `fc_fid:${fid}` };
 
     try {
-        const result = await httpsPost(AIRSTACK_API_URL, { query, variables }, headers);
-        console.log('Moxie auction data result:', safeStringify(result));
+        const { data, error } = await fetchQuery(query, variables);
+        console.log('Moxie auction data result:', safeStringify(data));
         
-        if (result.errors) {
-            throw new Error(result.errors[0].message);
+        if (error) {
+            throw new Error(error.message);
         }
         
-        if (!result.data || !result.data.FarcasterFanTokenAuctions || result.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
+        if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
             throw new Error('No Moxie auction data found');
         }
         
-        const auctionData = result.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+        const auctionData = data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
         return auctionData;
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
