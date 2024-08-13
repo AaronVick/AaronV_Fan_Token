@@ -83,7 +83,7 @@ async function handlePostRequest(input) {
     }
 
     if (!userData || !userData.address) {
-        return { imageUrl: generateProfileNotFoundImage() };
+        return { imageUrl: generateProfileNotFoundImage(input) };
     }
 
     try {
@@ -91,17 +91,26 @@ async function handlePostRequest(input) {
         return { imageUrl: generateAuctionImageUrl(auctionData, userData.profileName || 'Unknown User') };
     } catch (error) {
         console.error('Error fetching Moxie auction data:', error);
-        return { imageUrl: generateErrorImageUrl(error) };
+        return { imageUrl: generateErrorImageUrl(error, userData) };
     }
 }
 
-function generateProfileNotFoundImage() {
-    return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent('No Profile Found')}`;
+function generateProfileNotFoundImage(input) {
+    const text = `Profile Not Found: ${input || 'No input provided'}`;
+    return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent(text)}`;
 }
 
-function generateErrorImageUrl(error) {
-    const errorText = `Error: ${error.message}`;
-    return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent(errorText)}`;
+function generateErrorImageUrl(error, userData) {
+    const errorText = `
+Error: ${error.message}
+
+Moxie Resolve Data:
+FID: ${userData.fid || 'N/A'}
+Profile Name: ${userData.profileName || 'N/A'}
+Address: ${userData.address || 'N/A'}
+    `.trim();
+
+    return `https://via.placeholder.com/1000x600/FF0000/FFFFFF?text=${encodeURIComponent(errorText)}&font=monospace&size=18&weight=bold`;
 }
 
 function safeStringify(obj) {
@@ -147,7 +156,7 @@ async function getMoxieAuctionData(address) {
     const query = `
         query GetMoxieAndAuctionData($address: Address!) {
             FarcasterFanTokenAuctions(
-                input: {filter: {entityType: {_in: [USER, CHANNEL, NETWORK]}, subjectAddress: {_eq: $address}}, blockchain: ALL, limit: 1}
+                input: {filter: {subjectAddress: {_eq: $address}}, blockchain: ALL, limit: 1}
             ) {
                 FarcasterFanTokenAuction {
                     auctionId
@@ -160,7 +169,6 @@ async function getMoxieAuctionData(address) {
                     estimatedStartTimestamp
                     minBiddingAmount
                     minPriceInMoxie
-                    subjectAddress
                     status
                 }
             }
@@ -180,19 +188,12 @@ async function getMoxieAuctionData(address) {
             throw new Error(result.errors[0].message);
         }
         
-        if (!result.data || !result.data.FarcasterFanTokenAuctions || result.data.FarcasterFanTokenAuctions.length === 0) {
+        if (!result.data || !result.data.FarcasterFanTokenAuctions || result.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
             throw new Error('No Moxie auction data found');
         }
         
         const auctionData = result.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
-        return {
-            auctionId: auctionData.auctionId,
-            auctionSupply: auctionData.auctionSupply || 'N/A',
-            entityName: auctionData.entityName || 'N/A',
-            status: auctionData.status || 'N/A',
-            minPriceInMoxie: auctionData.minPriceInMoxie || 'N/A',
-            estimatedEndTimestamp: auctionData.estimatedEndTimestamp || 'N/A'
-        };
+        return auctionData;
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
         throw error;
