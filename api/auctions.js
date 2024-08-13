@@ -161,14 +161,17 @@ async function getMoxieAuctionData(address) {
 
     try {
         console.log('Attempting to fetch Moxie auction data...');
-        const { data, error } = await fetchQuery(query, variables);
-        console.log('Moxie auction data result:', safeStringify(data));
+        const response = await fetchQuery(query, variables);
         
-        if (error) {
-            throw new Error(`Airstack API Error: ${error.message || 'Unknown error'}`);
+        if (response.error) {
+            console.error('API Error:', response.error);
+            throw new Error(`Airstack API Error: ${response.error.message || 'Unknown error'}`);
         }
+
+        const data = response.data;
         
         if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
+            console.warn('No Moxie auction data found for address:', address);
             throw new Error('No Moxie auction data found');
         }
         
@@ -179,6 +182,7 @@ async function getMoxieAuctionData(address) {
         throw error;
     }
 }
+
 
 function generateAuctionImageUrl(auctionData, profileName) {
     console.log('Generating auction image URL for:', profileName, 'with data:', safeStringify(auctionData));
