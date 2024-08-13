@@ -1,11 +1,14 @@
 const url = require('url');
 const fs = require('fs').promises;
 const path = require('path');
-const { fetchQuery } = require('@airstack/node');
+const { init, fetchQuery } = require('@airstack/node');
 
 const DEFAULT_FID = '354795';
 const FALLBACK_URL = 'https://aaron-v-fan-token.vercel.app';
 const DEFAULT_IMAGE_URL = 'https://www.aaronvick.com/Moxie/11.JPG';
+
+// Initialize Airstack SDK
+init(process.env.AIRSTACK_API_KEY);
 
 async function readMoxieResolveData() {
     const filePath = path.join(process.cwd(), 'api', 'moxie_resolve.json');
@@ -158,11 +161,8 @@ async function getMoxieAuctionData(fid) {
     const variables = { fid: `fc_fid:${fid}` };
 
     try {
-        console.log('Attempting to fetch Moxie auction data with API key...');
-        console.log('API Key present:', !!process.env.AIRSTACK_API_KEY);
-        const { data, error } = await fetchQuery(query, variables, {
-            api_key: process.env.AIRSTACK_API_KEY
-        });
+        console.log('Attempting to fetch Moxie auction data...');
+        const { data, error } = await fetchQuery(query, variables);
         console.log('Moxie auction data result:', safeStringify(data));
         
         if (error) {
