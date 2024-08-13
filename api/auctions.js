@@ -70,26 +70,25 @@ function generateHtml(imageUrl, buttonText, inputText, postUrl) {
 async function handlePostRequest(input) {
     console.log('Handling post request with input:', input);
     const moxieResolveData = await readMoxieResolveData();
-    let address;
+    let userData;
 
     if (input.trim() === '') {
         // Use default FID
-        address = moxieResolveData.find(item => item.fid === parseInt(DEFAULT_FID))?.address;
+        userData = moxieResolveData.find(item => item.fid === parseInt(DEFAULT_FID));
     } else {
         // Search by profileName or FID
-        const searchItem = moxieResolveData.find(item => 
+        userData = moxieResolveData.find(item => 
             item.profileName === input || item.fid === parseInt(input)
         );
-        address = searchItem?.address;
     }
 
-    if (!address) {
+    if (!userData || !userData.address) {
         return { imageUrl: generateProfileNotFoundImage() };
     }
 
     try {
-        const auctionData = await getMoxieAuctionData(address);
-        return { imageUrl: generateAuctionImageUrl(auctionData, input || 'Default User') };
+        const auctionData = await getMoxieAuctionData(userData.address);
+        return { imageUrl: generateAuctionImageUrl(auctionData, userData.profileName || 'Unknown User') };
     } catch (error) {
         console.error('Error fetching Moxie auction data:', error);
         return { imageUrl: generateErrorImageUrl(error) };
@@ -146,34 +145,28 @@ function httpsPost(url, data, headers = {}) {
 
 async function getMoxieAuctionData(address) {
     const query = `
-        query GetMoxieAuctionData($identity: Identity!) {
-            TokenBalances(
-                input: {filter: {owner: {_eq: $identity}, tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
+        query GetMoxieAndAuctionData($address: Address!) {
+            FarcasterFanTokenAuctions(
+                input: {filter: {entityType: {_in: [USER, CHANNEL, NETWORK]}, subjectAddress: {_eq: $address}}, blockchain: ALL, limit: 1}
             ) {
-                TokenBalance {
-                    amount
-                    formattedAmount
-                    token {
-                        name
-                        symbol
-                    }
-                }
-            }
-            TokenNfts(
-                input: {filter: {tokenAddress: {_eq: "0x4bc81e5de3221e0b64a602164840d71bb99cb2c8"}}, blockchain: base, limit: 1}
-            ) {
-                TokenNft {
-                    tokenId
-                    contentValue {
-                        image {
-                            original
-                        }
-                    }
+                FarcasterFanTokenAuction {
+                    auctionId
+                    auctionSupply
+                    decimals
+                    entityId
+                    entityName
+                    entitySymbol
+                    estimatedEndTimestamp
+                    estimatedStartTimestamp
+                    minBiddingAmount
+                    minPriceInMoxie
+                    subjectAddress
+                    status
                 }
             }
         }
     `;
-    const variables = { identity: address };
+    const variables = { address: address };
 
     const headers = {
         'Authorization': `Bearer ${process.env.AIRSTACK_API_KEY}`
@@ -187,17 +180,18 @@ async function getMoxieAuctionData(address) {
             throw new Error(result.errors[0].message);
         }
         
-        if (!result.data || !result.data.TokenBalances || !result.data.TokenNfts) {
+        if (!result.data || !result.data.FarcasterFanTokenAuctions || result.data.FarcasterFanTokenAuctions.length === 0) {
             throw new Error('No Moxie auction data found');
         }
         
-        const tokenBalance = result.data.TokenBalances.TokenBalance[0];
-        const tokenNft = result.data.TokenNfts.TokenNft[0];
+        const auctionData = result.data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
         return {
-            auctionId: address,
-            auctionSupply: tokenBalance?.amount || 'N/A',
-            tokenImage: tokenNft?.contentValue?.image?.original || DEFAULT_IMAGE_URL,
-            totalBidValue: tokenBalance?.formattedAmount || 'N/A',
+            auctionId: auctionData.auctionId,
+            auctionSupply: auctionData.auctionSupply || 'N/A',
+            entityName: auctionData.entityName || 'N/A',
+            status: auctionData.status || 'N/A',
+            minPriceInMoxie: auctionData.minPriceInMoxie || 'N/A',
+            estimatedEndTimestamp: auctionData.estimatedEndTimestamp || 'N/A'
         };
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
@@ -210,12 +204,15 @@ function generateAuctionImageUrl(auctionData, profileName) {
     const text = `
 Auction for ${profileName}
 
-Auction ID:     ${(auctionData.auctionId || 'N/A').slice(0, 10)}...
-Auction Supply: ${(auctionData.auctionSupply || 'N/A').padEnd(20)}
-Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
+Auction ID: ${(auctionData.auctionId || 'N/A').slice(0, 10)}...
+Entity: ${auctionData.entityName || 'N/A'}
+Status: ${auctionData.status || 'N/A'}
+Supply: ${auctionData.auctionSupply || 'N/A'}
+Min Price: ${auctionData.minPriceInMoxie || 'N/A'} MOXIE
+End Time: ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString() || 'N/A'}
     `.trim();
 
-    const imageUrl = `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
+    const imageUrl = `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=24&weight=bold`;
     console.log('Generated auction image URL:', imageUrl);
     return imageUrl;
 }
