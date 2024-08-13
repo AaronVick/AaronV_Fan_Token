@@ -133,11 +133,11 @@ function safeStringify(obj) {
     }
 }
 
-async function getMoxieAuctionData(address) {
+async function getMoxieAuctionData(fid) {
     const query = `
-    query GetMoxieAndAuctionData($address: String!) {
+    query GetFanTokenDataByFid($fid: String!) {
         FarcasterFanTokenAuctions(
-            input: {filter: {entityType: {_in: [USER, CHANNEL, NETWORK]}, subjectAddress: {_eq: $address}}, blockchain: ALL, limit: 50}
+            input: {filter: {entityId: {_eq: $fid}, entityType: {_in: [USER, CHANNEL]}}, blockchain: ALL, limit: 1}
         ) {
             FarcasterFanTokenAuction {
                 auctionId
@@ -157,32 +157,28 @@ async function getMoxieAuctionData(address) {
     }
     `;
     
-    const variables = { address };
+    const variables = { fid: `fc_fid:${fid}` };
 
     try {
         console.log('Attempting to fetch Moxie auction data...');
-        const response = await fetchQuery(query, variables);
+        const { data, error } = await fetchQuery(query, variables);
+        console.log('Moxie auction data result:', safeStringify(data));
         
-        if (response.error) {
-            console.error('API Error:', response.error);
-            throw new Error(`Airstack API Error: ${response.error.message || 'Unknown error'}`);
+        if (error) {
+            throw new Error(`Airstack API Error: ${error.message || 'Unknown error'}`);
         }
-
-        const data = response.data;
         
-        if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
-            console.warn('No Moxie auction data found for address:', address);
+        if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.length === 0) {
             throw new Error('No Moxie auction data found');
         }
         
-        const auctionData = data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+        const auctionData = data.FarcasterFanTokenAuctions[0];
         return auctionData;
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
         throw error;
     }
 }
-
 
 function generateAuctionImageUrl(auctionData, profileName) {
     console.log('Generating auction image URL for:', profileName, 'with data:', safeStringify(auctionData));
