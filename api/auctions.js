@@ -133,11 +133,11 @@ function safeStringify(obj) {
     }
 }
 
-async function getMoxieAuctionData(fid) {
+async function getMoxieAuctionData(address) {
     const query = `
-    query GetFanTokenDataByFid($fid: String!) {
+    query GetMoxieAndAuctionData($address: String!) {
         FarcasterFanTokenAuctions(
-            input: {filter: {entityId: {_eq: $fid}, entityType: {_in: [USER, CHANNEL]}}, blockchain: ALL, limit: 1}
+            input: {filter: {entityType: {_in: [USER, CHANNEL, NETWORK]}, subjectAddress: {_eq: $address}}, blockchain: ALL, limit: 50}
         ) {
             FarcasterFanTokenAuction {
                 auctionId
@@ -157,7 +157,7 @@ async function getMoxieAuctionData(fid) {
     }
     `;
     
-    const variables = { fid: `fc_fid:${fid}` };
+    const variables = { address };
 
     try {
         console.log('Attempting to fetch Moxie auction data...');
@@ -168,11 +168,11 @@ async function getMoxieAuctionData(fid) {
             throw new Error(`Airstack API Error: ${error.message || 'Unknown error'}`);
         }
         
-        if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.length === 0) {
+        if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
             throw new Error('No Moxie auction data found');
         }
         
-        const auctionData = data.FarcasterFanTokenAuctions[0];
+        const auctionData = data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
         return auctionData;
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
