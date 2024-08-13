@@ -14,12 +14,14 @@ async function readMoxieResolveData() {
 }
 
 module.exports = async (req, res) => {
-    console.log('Checking for AIRSTACK_API_KEY...');
+    console.log('Starting auction frame handler');
+    console.log('Environment variables:', Object.keys(process.env));
+    console.log('AIRSTACK_API_KEY present:', !!process.env.AIRSTACK_API_KEY);
+
     if (!process.env.AIRSTACK_API_KEY) {
         console.error('AIRSTACK_API_KEY is not set in the environment variables');
-        return res.status(500).send('Server configuration error: API key not set');
+        return res.status(500).send(generateHtml(generateErrorImageUrl(new Error('Server configuration error: API key not set'), null), 'Try Again', 'Enter Farcaster name or FID', req.headers.host));
     }
-    console.log('AIRSTACK_API_KEY is set');
 
     console.log('Received request method:', req.method);
     console.log('Request headers:', safeStringify(req.headers));
@@ -157,13 +159,14 @@ async function getMoxieAuctionData(fid) {
 
     try {
         console.log('Attempting to fetch Moxie auction data with API key...');
+        console.log('API Key present:', !!process.env.AIRSTACK_API_KEY);
         const { data, error } = await fetchQuery(query, variables, {
             api_key: process.env.AIRSTACK_API_KEY
         });
         console.log('Moxie auction data result:', safeStringify(data));
         
         if (error) {
-            throw new Error(error.message);
+            throw new Error(`Airstack API Error: ${error.message}`);
         }
         
         if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
