@@ -17,8 +17,10 @@ module.exports = async (req, res) => {
     let inputText = "Enter Farcaster name";
 
     if (req.method === 'POST' && req.body?.untrustedData?.inputText) {
+        console.log('Handling POST request with input:', req.body.untrustedData.inputText);
         try {
             const result = await handlePostRequest(req.body.untrustedData.inputText);
+            console.log('POST request result:', result);
             imageUrl = result.imageUrl;
             buttonText = "Check Another Auction";
         } catch (error) {
@@ -26,9 +28,12 @@ module.exports = async (req, res) => {
             imageUrl = generateErrorImageUrl(error);
             buttonText = "Try Again";
         }
+    } else {
+        console.log('Handling non-POST request or request without input');
     }
 
     const postUrl = `https://${host}/api/auctions`;
+    console.log('Final image URL before generating HTML:', imageUrl);
     const html = generateHtml(imageUrl, buttonText, inputText, postUrl);
 
     console.log('Sending response with image URL:', imageUrl);
@@ -58,17 +63,21 @@ function generateHtml(imageUrl, buttonText, inputText, postUrl) {
 }
 
 async function handlePostRequest(farcasterName) {
+    console.log('Handling post request for Farcaster name:', farcasterName);
     let fid = DEFAULT_FID;
     let displayName = 'Unknown User';
     let auctionData = null;
 
     try {
         const userData = await getUserDataFromAirstack(farcasterName);
+        console.log('User data from Airstack:', safeStringify(userData));
         if (userData.data?.Socials?.Social?.[0]) {
             const user = userData.data.Socials.Social[0];
             fid = user.userId;
             displayName = user.username || farcasterName;
+            console.log('Fetching Moxie auction data for FID:', fid);
             auctionData = await getMoxieAuctionData(fid);
+            console.log('Moxie auction data:', safeStringify(auctionData));
         } else {
             throw new Error('User not found in Airstack');
         }
@@ -237,6 +246,7 @@ async function getMoxieAuctionData(fid) {
 }
 
 function generateImageUrl(auctionData, farcasterName) {
+    console.log('Generating image URL for:', farcasterName, 'with data:', safeStringify(auctionData));
     const text = `
 Auction for ${farcasterName}
 
@@ -245,5 +255,7 @@ Auction Supply: ${(auctionData.auctionSupply || 'N/A').padEnd(20)}
 Total Bid Value:${(auctionData.totalBidValue || 'N/A').padEnd(20)}
     `.trim();
 
-    return `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
+    const imageUrl = `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=30&weight=bold`;
+    console.log('Generated image URL:', imageUrl);
+    return imageUrl;
 }
