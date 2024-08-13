@@ -114,7 +114,7 @@ function generateProfileNotFoundImage(input) {
 
 function generateErrorImageUrl(error, userData) {
     const errorText = `
-Error: ${error.message}
+Error: ${error.message || 'Unknown error'}
 
 Moxie Resolve Data:
 FID: ${userData?.fid || 'N/A'}
@@ -154,7 +154,6 @@ async function getMoxieAuctionData(fid) {
                 status
             }
         }
-        FarcasterMoxieClaimDetails(input: {filter: {}, blockchain: ALL})
     }
     `;
     
@@ -166,14 +165,14 @@ async function getMoxieAuctionData(fid) {
         console.log('Moxie auction data result:', safeStringify(data));
         
         if (error) {
-            throw new Error(`Airstack API Error: ${error.message}`);
+            throw new Error(`Airstack API Error: ${error.message || 'Unknown error'}`);
         }
         
-        if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction.length === 0) {
+        if (!data || !data.FarcasterFanTokenAuctions || data.FarcasterFanTokenAuctions.length === 0) {
             throw new Error('No Moxie auction data found');
         }
         
-        const auctionData = data.FarcasterFanTokenAuctions.FarcasterFanTokenAuction[0];
+        const auctionData = data.FarcasterFanTokenAuctions[0];
         return auctionData;
     } catch (error) {
         console.error('Error in getMoxieAuctionData:', error);
@@ -191,7 +190,7 @@ Entity: ${auctionData.entityName || 'N/A'}
 Status: ${auctionData.status || 'N/A'}
 Supply: ${auctionData.auctionSupply || 'N/A'}
 Min Price: ${auctionData.minPriceInMoxie || 'N/A'} MOXIE
-End Time: ${new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString() || 'N/A'}
+End Time: ${auctionData.estimatedEndTimestamp ? new Date(parseInt(auctionData.estimatedEndTimestamp) * 1000).toLocaleString() : 'N/A'}
     `.trim();
 
     const imageUrl = `https://via.placeholder.com/1000x600/8E55FF/FFFFFF?text=${encodeURIComponent(text)}&font=monospace&size=24&weight=bold`;
