@@ -14,6 +14,13 @@ async function readMoxieResolveData() {
 }
 
 module.exports = async (req, res) => {
+    console.log('Checking for AIRSTACK_API_KEY...');
+    if (!process.env.AIRSTACK_API_KEY) {
+        console.error('AIRSTACK_API_KEY is not set in the environment variables');
+        return res.status(500).send('Server configuration error: API key not set');
+    }
+    console.log('AIRSTACK_API_KEY is set');
+
     console.log('Received request method:', req.method);
     console.log('Request headers:', safeStringify(req.headers));
     console.log('Request body:', safeStringify(req.body));
@@ -32,7 +39,7 @@ module.exports = async (req, res) => {
             buttonText = "Check Another Auction";
         } catch (error) {
             console.error('Error handling POST request:', error);
-            imageUrl = generateErrorImageUrl(error);
+            imageUrl = generateErrorImageUrl(error, error.userData);
             buttonText = "Try Again";
         }
     }
@@ -90,7 +97,8 @@ async function handlePostRequest(input) {
         return { imageUrl: generateAuctionImageUrl(auctionData, userData.profileName || 'Unknown User') };
     } catch (error) {
         console.error('Error fetching Moxie auction data:', error);
-        return { imageUrl: generateErrorImageUrl(error, userData) };
+        error.userData = userData; // Attach userData to the error for better error reporting
+        throw error;
     }
 }
 
@@ -148,7 +156,10 @@ async function getMoxieAuctionData(fid) {
     const variables = { fid: `fc_fid:${fid}` };
 
     try {
-        const { data, error } = await fetchQuery(query, variables);
+        console.log('Attempting to fetch Moxie auction data with API key...');
+        const { data, error } = await fetchQuery(query, variables, {
+            api_key: process.env.AIRSTACK_API_KEY
+        });
         console.log('Moxie auction data result:', safeStringify(data));
         
         if (error) {
